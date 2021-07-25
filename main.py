@@ -1,60 +1,88 @@
+# I used  this code to test layouts
+
 import sys
+from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget,QHBoxLayout,QGridLayout,QStackedLayout,QPushButton,QToolBar
+from PyQt5.QtGui import QPalette, QColor
+from PyQt5.QtCore import Qt, QSize
+from scripts.pages_classes import *
+class Color(QWidget):
 
-from PyQt5.QtCore import QSize, Qt
-from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QLineEdit, QVBoxLayout, QWidget
+    def __init__(self, color):
+        super(Color, self).__init__()
+        self.setAutoFillBackground(True)
 
-# Subclass QMainWindow to customize your application's main window
+        palette = self.palette()
+        palette.setColor(QPalette.Window, QColor(color))
+        self.setPalette(palette)
+
+
+
+        
 class MainWindow(QMainWindow):
+
     def __init__(self):
-        super().__init__()
+        super(MainWindow, self).__init__()
 
-        self.setWindowTitle("My App")
-        self.button_is_checked = True #variable in which i save the state of the button
-        self.button = QPushButton("Press Me!")
+        #window settings
+        min_width=1200
+        min_height=600
+        self.setWindowTitle("My Analisys_App")
+        self.setMinimumSize(min_width, min_height)
 
-        self.setFixedSize(QSize(400, 300)) #fix dimension to a specific size
-        self.button.setFixedSize(QSize(100, 100))
+        #toolbar definition
 
-        # Set the central widget of the Window.
-        self.setCentralWidget(self.button)
-        self.button.setCheckable(True)
-        self.button.clicked.connect(self.the_button_was_clicked)
-        self.button.clicked.connect(self.the_button_was_toggled) #check if button is on or off (remove this if u want just to click it)
-        #self.button.released.connect(self.the_button_was_released) # useful for any widget
-        # Set the central widget of the Window.
-        self.setCentralWidget(self.button)
+        self.toolbar = QToolBar("My main toolbar")
+        self.toolbar.setIconSize(QSize(16,16)) # important for icons! Otherwise padding makes them invisible!
+        self.toolbar.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)# important if you want text beside icon
+        self.addToolBar(self.toolbar)
+        self.tb_label=QLabel("toolbar")
+        self.tb_label_mode=QLabel("Analysis Mode")
+
+        self.tb_btn = QPushButton("log out")
+        self.tb_btn.pressed.connect(self.go_to_login_page)
+        self.mode_choice=QComboBox(self)
+        self.mode_choice.addItem("Real Time")
+        self.mode_choice.addItem("BackTesting")
+        self.mode_choice.activated[str].connect(self.onModeSelected)
+
+        self.toolbar.addWidget(self.tb_label)
+        self.toolbar.addWidget(self.tb_btn)
+        self.toolbar.addWidget(self.tb_label_mode)
+        self.toolbar.addWidget(self.mode_choice)
 
 
+        self.toolbar.setVisible(False)
 
 
-        self.label = QLabel()
+        self.pages_layout = QStackedLayout() #here is where all pages are stored
 
-        self.input = QLineEdit()
-        self.input.textChanged.connect(self.label.setText) #connect together two widgets directly
 
-        layout = QVBoxLayout()
-        layout.addWidget(self.input)
-        layout.addWidget(self.label)
-        layout.addWidget(self.button)
+        login_page=Login_page(self)
+        self.main_page=Main_page(self)
+        self.pages_layout.addWidget(login_page) #index 0  
+        self.pages_layout.addWidget(self.main_page) #index 1
 
-        container = QWidget()
-        container.setLayout(layout)
+        self.pages_layout.setCurrentIndex(0) #set the initial page as the login one
 
-        # Set the central widget of the Window.
-        self.setCentralWidget(container)
+        widget = QWidget()
+        widget.setLayout(self.pages_layout)
+        self.setCentralWidget(widget)
 
-    def the_button_was_clicked(self):
-        print("Clicked!")
-        self.button.setText("You already clicked me.")
-        self.button.setEnabled(False)
-    def the_button_was_toggled(self, checked):
-         self.button_is_checked = checked
-         print(self.button_is_checked)
-    def the_button_was_released(self): #retrieve the status of widget that doesn't do it automatically
-        self.button_is_checked = self.button.isChecked()
-
-        print(self.button_is_checked)
-
+    #functions
+    def go_to_main_page(self):
+        print("go to main page")
+        self.pages_layout.setCurrentIndex(1)
+        self.toolbar.setVisible(True)
+    def go_to_login_page(self):
+        print("go to login page")
+        self.pages_layout.setCurrentIndex(0)
+        self.toolbar.setVisible(False)
+    def onModeSelected(self,selected_mode):
+        print("you selected",selected_mode)
+        if selected_mode=="Real Time":
+            self.main_page.mode_frame_layout.setCurrentIndex(1)
+        elif selected_mode=="BackTesting":
+            self.main_page.mode_frame_layout.setCurrentIndex(0)
 
 
 app = QApplication(sys.argv)
