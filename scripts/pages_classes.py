@@ -1,5 +1,7 @@
 import sys
 import random
+import time
+import datetime
 import matplotlib
 matplotlib.use('Qt5Agg')
 from PyQt5 import QtCore, QtWidgets
@@ -8,6 +10,7 @@ from PyQt5.QtWidgets import QApplication, QComboBox, QLabel, QMainWindow, QSizeP
 from PyQt5.QtGui import QPalette, QColor
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 import matplotlib.pyplot as plt
+from scripts.functions import *
 
 
 class proto_page(QWidget): #prototype of page widget to be used in a QStackedLayout
@@ -98,8 +101,8 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
 
         self.backtesting_label=QLabel("Parametri BackTesting")
         parameters_form_layout = QFormLayout(self.mode_backtesting_frame) # form layout in which i put a label with all the parameters to be setted
-        init_date=QDateTimeEdit(self.mode_backtesting_frame)
-        end_date=QDateTimeEdit(self.mode_backtesting_frame) #these two widget define the period that needs to be analysed
+        self.init_date=QDateTimeEdit(self.mode_backtesting_frame)
+        self.end_date=QDateTimeEdit(self.mode_backtesting_frame) #these two widget define the period that needs to be analysed
         investing_amount=QDoubleSpinBox(self.mode_backtesting_frame)
         investing_amount.setMinimum(1)
         investing_amount.setMaximum(1000)
@@ -114,16 +117,21 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
         marketplace_crypto_choice.addItem("market2")
         marketplace_crypto_choice.addItem("market3")
 
-        parameters_form_layout.addRow(self.tr("from:"), init_date)
-        parameters_form_layout.addRow(self.tr("to:"), end_date)
+        parameters_form_layout.addRow(self.tr("from:"), self.init_date)
+        parameters_form_layout.addRow(self.tr("to:"), self.end_date)
         parameters_form_layout.addRow(self.tr("investing amount"),investing_amount)
         parameters_form_widget=QWidget()
         parameters_form_widget.setLayout(parameters_form_layout)
 
+        analise_button=QPushButton("analise")
+        analise_button.pressed.connect(self.analise)
         self.mode_backtesting_layout.addWidget(self.backtesting_label)
         self.mode_backtesting_layout.addWidget(crypto_currencies_choice)
         self.mode_backtesting_layout.addWidget(marketplace_crypto_choice)
         self.mode_backtesting_layout.addWidget(parameters_form_widget)
+        self.mode_backtesting_layout.addWidget(analise_button)
+
+        self.mode_backtesting_layout.addStretch(1) #push the object up in the frame
     
         
 
@@ -134,6 +142,8 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
         crypto_currencies_choice.addItem("BTC-EUR")
         self.mode_realtime_layout.addWidget(self.realtime_label)
         self.mode_realtime_layout.addWidget(crypto_currencies_choice)
+        self.mode_realtime_layout.addStretch(1) #push the object up in the frame
+
         
 
         #second column--> the graph about real time 
@@ -162,8 +172,10 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
         self.column2_layout.addStretch(1) #push the object up in the frame
 
         #third column
-        self.third_column_label=QLabel("column3")
-        self.column3_layout.addWidget(self.third_column_label)
+        third_column_label=QLabel("column3")
+        result_column3_label=QLabel("Results:")
+        self.column3_layout.addWidget(third_column_label)
+        self.column3_layout.addWidget(result_column3_label)
         self.column3_layout.addStretch(1) #push the object up in the frame
 
         
@@ -201,3 +213,10 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
         
         self.counter+=1
        # print(self.xdata)
+    def analise(self): # 
+        #in this function, i get all the parameters and start to analise them
+        
+            #here i convert the dates the user has selected
+        init_date_string=self.init_date.dateTime().toPyDateTime()
+        end_date_string=self.end_date.dateTime().toPyDateTime() # dateTime() returns QDateTime, toPyDateTime() converts to datetime.datetime
+        print(init_date_string.timestamp(),end_date_string.timestamp()) # timestamp converts into unix format, useful in order to make some checks
