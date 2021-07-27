@@ -5,8 +5,8 @@ import datetime
 import matplotlib
 matplotlib.use('Qt5Agg')
 from PyQt5 import QtCore, QtWidgets
-
-from PyQt5.QtWidgets import QApplication, QComboBox, QLabel, QMainWindow, QSizePolicy, QVBoxLayout, QWidget,QHBoxLayout,QGridLayout,QStackedLayout,QPushButton,QToolBar,QSpacerItem,QLineEdit,QDateTimeEdit,QFormLayout,QDoubleSpinBox
+from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QApplication, QComboBox, QLabel, QMainWindow, QSizePolicy, QVBoxLayout, QWidget,QHBoxLayout,QGridLayout,QStackedLayout,QPushButton,QToolBar,QSpacerItem,QLineEdit,QDateTimeEdit,QFormLayout,QDoubleSpinBox,QMessageBox
 from PyQt5.QtGui import QPalette, QColor
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 import matplotlib.pyplot as plt
@@ -28,6 +28,7 @@ class MplCanvas(FigureCanvas):
     def __init__(self, parent=None, width=5, height=4, dpi=100):
         fig, self.axes = plt.subplots(figsize=(5, 4), dpi=200)
         super(MplCanvas, self).__init__(fig)
+
 
 
 class Login_page(QWidget):
@@ -100,6 +101,7 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
             #backtesting frame
 
         self.backtesting_label=QLabel("Parametri BackTesting")
+
         parameters_form_layout = QFormLayout(self.mode_backtesting_frame) # form layout in which i put a label with all the parameters to be setted
         self.init_date=QDateTimeEdit(self.mode_backtesting_frame)
         self.end_date=QDateTimeEdit(self.mode_backtesting_frame) #these two widget define the period that needs to be analysed
@@ -128,7 +130,7 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
         self.mode_backtesting_layout.addWidget(self.backtesting_label)
         self.mode_backtesting_layout.addWidget(crypto_currencies_choice)
         self.mode_backtesting_layout.addWidget(marketplace_crypto_choice)
-        self.mode_backtesting_layout.addWidget(parameters_form_widget)
+        self.mode_backtesting_layout.addWidget(parameters_form_widget)#
         self.mode_backtesting_layout.addWidget(analise_button)
 
         self.mode_backtesting_layout.addStretch(1) #push the object up in the frame
@@ -150,7 +152,7 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
         self.second_column_label=QLabel("Grafico")
         self.column2_layout.addWidget(self.second_column_label)
         
-        self.canvas = MplCanvas(self, width=10, height=4, dpi=100)
+        self.canvas = MplCanvas(self, width=8, height=4, dpi=100)
         self.column2_layout.addWidget(self.canvas)
 
         self.counter=0
@@ -172,10 +174,21 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
         self.column2_layout.addStretch(1) #push the object up in the frame
 
         #third column
-        third_column_label=QLabel("column3")
         result_column3_label=QLabel("Results:")
-        self.column3_layout.addWidget(third_column_label)
+        self.init_date_label=QLabel()
+        self.end_date_label=QLabel()
+        self.balance_label=QLabel()
+        self.init_date_label.setAlignment(Qt.AlignRight)
+        self.end_date_label.setAlignment(Qt.AlignRight)
+        self.init_date_label.setVisible(False) #visible only when 'analise' button is pressed
+        self.end_date_label.setVisible(False) #visible only when 'analise' button is pressed
+        self.balance_label.setVisible(False)  #visible only when 'analise' button is pressed
+
+        result_column3_label.setAlignment(Qt.AlignCenter)
         self.column3_layout.addWidget(result_column3_label)
+        self.column3_layout.addWidget(self.init_date_label)
+        self.column3_layout.addWidget(self.end_date_label)
+        self.column3_layout.addWidget(self.balance_label)
         self.column3_layout.addStretch(1) #push the object up in the frame
 
         
@@ -189,7 +202,7 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
         column3_frame.setLayout(self.column3_layout)
         column1_frame.setFixedWidth(300)
         column2_frame.setMinimumWidth(600)
-        column3_frame.setFixedWidth(300)
+        column3_frame.setFixedWidth(280)
         self.main_layout.addWidget(column1_frame)
         self.main_layout.addWidget(column2_frame)
         self.main_layout.addWidget(column3_frame)
@@ -199,7 +212,6 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
         # Drop off the first y element, append a new one.
         self.x1data = list(range(self.counter,self.n_data+self.counter))
         self.y1data = self.y1data[1:] + [random.randint(0, 20)]
-
         self.x2data = list(range(self.counter,self.n_data+self.counter))
         self.y2data = self.y2data[1:] + [random.randint(0, 20)]
 
@@ -219,4 +231,22 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
             #here i convert the dates the user has selected
         init_date_string=self.init_date.dateTime().toPyDateTime()
         end_date_string=self.end_date.dateTime().toPyDateTime() # dateTime() returns QDateTime, toPyDateTime() converts to datetime.datetime
-        print(init_date_string.timestamp(),end_date_string.timestamp()) # timestamp converts into unix format, useful in order to make some checks
+        state=checkDate(init_date_string.timestamp(),end_date_string.timestamp())# timestamp converts into unix format, useful in order to make some checks
+        if state==True:
+            self.init_date_label.setText("From: "+init_date_string.strftime('%Y-%m-%d %H:%M:%S'))
+            self.end_date_label.setText("To: "+end_date_string.strftime('%Y-%m-%d %H:%M:%S'))
+            self.balance_label.setText("Balance: "+self.getBalance())
+            self.init_date_label.setVisible(True)
+            self.end_date_label.setVisible(True)
+            self.balance_label.setVisible(True)
+        else:
+            self.showError(state) #creates a warning box with the desired message!
+    def getBalance(self):
+        return "0"
+    def showError(self,text):
+        dlg = QMessageBox()  #built in dialog widget for specific type of messages
+        dlg.setWindowTitle("Date range not valid!")
+        dlg.setText(text)
+        dlg.setStandardButtons(QMessageBox.Ok)
+        dlg.setIcon(QMessageBox.Critical)
+        button = dlg.exec()

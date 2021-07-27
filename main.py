@@ -1,9 +1,10 @@
 # I used  this code to test layouts
 
 import sys
+import datetime
 from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget,QHBoxLayout,QGridLayout,QStackedLayout,QPushButton,QToolBar
 from PyQt5.QtGui import QPalette, QColor
-from PyQt5.QtCore import Qt, QSize
+from PyQt5.QtCore import Qt, QSize,QTimer
 from scripts.pages_classes import *
 class Color(QWidget):
 
@@ -37,6 +38,7 @@ class MainWindow(QMainWindow):
         self.addToolBar(self.toolbar)
         self.tb_label=QLabel("toolbar")
         self.tb_label_mode=QLabel("Analysis Mode")
+        self.tb_date=QLabel(datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S")) #shows current date
 
         self.tb_btn = QPushButton("log out")
         self.tb_btn.pressed.connect(self.go_to_login_page)
@@ -49,6 +51,7 @@ class MainWindow(QMainWindow):
         self.toolbar.addWidget(self.tb_btn)
         self.toolbar.addWidget(self.tb_label_mode)
         self.toolbar.addWidget(self.mode_choice)
+        self.toolbar.addWidget(self.tb_date)
 
 
         self.toolbar.setVisible(False)
@@ -68,6 +71,12 @@ class MainWindow(QMainWindow):
         widget.setLayout(self.pages_layout)
         self.setCentralWidget(widget)
 
+        self.timer=QTimer()
+        self.timer.setInterval(1000)
+        self.timer.timeout.connect(self.update_main)
+        self.timer.start()
+
+
     #functions
     def go_to_main_page(self):
         print("go to main page")
@@ -83,6 +92,8 @@ class MainWindow(QMainWindow):
             self.main_page.mode_frame_layout.setCurrentIndex(1)
         elif selected_mode=="BackTesting":
             self.main_page.mode_frame_layout.setCurrentIndex(0)
+    def update_main(self): #function that allows to  dinamically update the main window
+        self.tb_date.setText(datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S"))
 
 
 app = QApplication(sys.argv)
