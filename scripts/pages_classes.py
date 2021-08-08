@@ -81,7 +81,7 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
         self.column2_layout=QVBoxLayout()
         self.column3_layout=QVBoxLayout()
 
-        #first column
+        ####first column####
         self.mode_frame_layout = QStackedLayout()# in base a quale modalità scelgo, cambiano i parametri da visualizzare
         self.mode_backtesting_layout=QVBoxLayout()
         self.mode_realtime_layout=QVBoxLayout()
@@ -142,13 +142,26 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
         self.realtime_label=QLabel("Parametri RealTime")
         crypto_currencies_choice=QComboBox(self.mode_realtime_frame)
         crypto_currencies_choice.addItem("BTC-EUR")
+        crypto_currencies_choice.addItem("BTC-USD")
+        crypto_currencies_choice.addItem("ETH-EUR")
+        crypto_currencies_choice.addItem("ETH-USD")
+        marketplace_crypto_choice=QComboBox(self.mode_realtime_frame)
+        marketplace_crypto_choice.addItem("market1")
+        marketplace_crypto_choice.addItem("market2")
+        marketplace_crypto_choice.addItem("market3")
+        investing_amount=QDoubleSpinBox(self.mode_realtime_frame)
+        investing_amount.setMinimum(1)
+        investing_amount.setMaximum(1000)
+        investing_amount.setPrefix("$") #TODO: when you change currencies, change prefix
         self.mode_realtime_layout.addWidget(self.realtime_label)
         self.mode_realtime_layout.addWidget(crypto_currencies_choice)
+        self.mode_realtime_layout.addWidget(marketplace_crypto_choice)
+        self.mode_realtime_layout.addWidget(investing_amount)
         self.mode_realtime_layout.addStretch(1) #push the object up in the frame
 
         
 
-        #second column--> the graph about real time 
+        #####second column####  the graph about real time 
         self.second_column_label=QLabel("Grafico")
         self.column2_layout.addWidget(self.second_column_label)
         
@@ -173,26 +186,46 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
         self.timer.start()
         self.column2_layout.addStretch(1) #push the object up in the frame
 
-        #third column
+        ####third column####
         result_column3_label=QLabel("Results:")
         self.init_date_label=QLabel()
         self.end_date_label=QLabel()
         self.balance_label=QLabel()
+        #set the text alignment
         self.init_date_label.setAlignment(Qt.AlignRight)
         self.end_date_label.setAlignment(Qt.AlignRight)
-        self.init_date_label.setVisible(False) #visible only when 'analise' button is pressed
-        self.end_date_label.setVisible(False) #visible only when 'analise' button is pressed
-        self.balance_label.setVisible(False)  #visible only when 'analise' button is pressed
+        self.balance_label.setAlignment(Qt.AlignRight)
+
+        self.init_date_layout=QFormLayout()
+        self.end_date_layout=QFormLayout()
+        self.balance_layout=QFormLayout()
+        self.init_date_layout.addRow(self.tr("From:"),self.init_date_label)
+        self.end_date_layout.addRow(self.tr("To:"),self.end_date_label)
+        self.balance_layout.addRow(self.tr("Balance:"),self.balance_label)
+
+        #creation of the widget used for the several layouts inside the column
+        self.init_date_label_widget=QWidget()
+        self.end_date_label_widget=QWidget()
+        self.balance_label_widget=QWidget()
+        #setting the layouts to the proper widget
+        self.init_date_label_widget.setLayout(self.init_date_layout)
+        self.end_date_label_widget.setLayout(self.end_date_layout)
+        self.balance_label_widget.setLayout(self.balance_layout)
+        #visible only when 'analise' button is pressed
+        self.init_date_label_widget.setVisible(False) 
+        self.end_date_label_widget.setVisible(False) 
+        self.balance_label_widget.setVisible(False)  
 
         result_column3_label.setAlignment(Qt.AlignCenter)
+        #adding widgets to the column layout
         self.column3_layout.addWidget(result_column3_label)
-        self.column3_layout.addWidget(self.init_date_label)
-        self.column3_layout.addWidget(self.end_date_label)
-        self.column3_layout.addWidget(self.balance_label)
+        self.column3_layout.addWidget(self.init_date_label_widget)
+        self.column3_layout.addWidget(self.end_date_label_widget)
+        self.column3_layout.addWidget(self.balance_label_widget)
         self.column3_layout.addStretch(1) #push the object up in the frame
 
         
-         #adding the three columns to the main page
+        ####adding the three columns to the main page####
         
         column1_frame=QWidget()
         column1_frame.setLayout(self.column1_layout)
@@ -218,7 +251,8 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
         self.canvas.axes.cla()  # Clear the canvas.
         self.canvas.axes.plot(self.x1data, self.y1data, 'r',label="line 1")
         self.canvas.axes.plot(self.x2data, self.y2data, 'b', label="line 2")
-        self.canvas.axes.legend()
+        self.canvas.axes.legend(bbox_to_anchor=(0,1.02,1,0.2), loc="lower left",
+                mode="expand", borderaxespad=0, ncol=3)
     
         # Trigger the canvas to update and redraw.
         self.canvas.draw()
@@ -233,15 +267,15 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
         end_date_string=self.end_date.dateTime().toPyDateTime() # dateTime() returns QDateTime, toPyDateTime() converts to datetime.datetime
         state=checkDate(init_date_string.timestamp(),end_date_string.timestamp())# timestamp converts into unix format, useful in order to make some checks
         if state==True:
-            self.init_date_label.setText("From: "+init_date_string.strftime('%Y-%m-%d %H:%M:%S'))
-            self.end_date_label.setText("To: "+end_date_string.strftime('%Y-%m-%d %H:%M:%S'))
-            self.balance_label.setText("Balance: "+self.getBalance())
-            self.init_date_label.setVisible(True)
-            self.end_date_label.setVisible(True)
-            self.balance_label.setVisible(True)
+            self.init_date_label.setText(init_date_string.strftime('%Y-%m-%d %H:%M:%S'))
+            self.end_date_label.setText(end_date_string.strftime('%Y-%m-%d %H:%M:%S'))
+            self.balance_label.setText(self.getBalance())
+            self.init_date_label_widget.setVisible(True)
+            self.end_date_label_widget.setVisible(True)
+            self.balance_label_widget.setVisible(True)
         else:
             self.showError(state) #creates a warning box with the desired message!
-    def getBalance(self):
+    def getBalance(self): #TODO: develop a function used to get a realistic result
         return "0"
     def showError(self,text):
         dlg = QMessageBox()  #built in dialog widget for specific type of messages
