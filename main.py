@@ -1,7 +1,7 @@
 # I used  this code to test layouts
 
-import sys
-import datetime
+import sys,os
+import datetime,cbpro
 from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget,QHBoxLayout,QGridLayout,QStackedLayout,QPushButton,QToolBar
 from PyQt5.QtGui import QPalette, QColor
 from PyQt5.QtCore import Qt, QSize,QTimer
@@ -11,19 +11,25 @@ class Color(QWidget):
     def __init__(self, color):
         super(Color, self).__init__()
         self.setAutoFillBackground(True)
-
         palette = self.palette()
         palette.setColor(QPalette.Window, QColor(color))
         self.setPalette(palette)
-
-
-
-        
+      
 class MainWindow(QMainWindow):
 
     def __init__(self):
         super(MainWindow, self).__init__()
+        
+        GENERAL_PATH= os.getcwd()
+        config_dict=read_yaml(GENERAL_PATH+"/config.yaml")
+        RECORD_DATA_PATH= config_dict["PATH"]["DATA_PATH"]
+        CB_KEY= config_dict["COINBASE_API_CONF"]["CB_KEY"]
+        CB_PASSPHRASE= config_dict["COINBASE_API_CONF"]["CB_PASSPHRASE"]
+        CB_SECRET= config_dict["COINBASE_API_CONF"]["CB_SECRET"]
+        CB_URL= "http://api-public.sandbox.pro.coinbase.com"
 
+        cbpro_client_sand = cbpro.AuthenticatedClient(CB_KEY,CB_SECRET,CB_PASSPHRASE,CB_URL) #initialise virtual account
+        update_currencies_data(RECORD_DATA_PATH,cbpro_client_sand)
         #window settings
         min_width=1200
         min_height=600
@@ -38,7 +44,7 @@ class MainWindow(QMainWindow):
         self.addToolBar(self.toolbar)
         self.tb_label=QLabel("toolbar")
         self.tb_label_mode=QLabel("Analysis Mode")
-        self.tb_date=QLabel(datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S")) #shows current date
+        self.tb_date=QLabel(datetime.now().strftime("%m/%d/%Y, %H:%M:%S")) #shows current date
 
         self.tb_btn = QPushButton("log out")
         self.tb_btn.pressed.connect(self.go_to_login_page)
@@ -93,7 +99,7 @@ class MainWindow(QMainWindow):
         elif selected_mode=="BackTesting":
             self.main_page.mode_frame_layout.setCurrentIndex(0)
     def update_main(self): #function that allows to  dinamically update the main window
-        self.tb_date.setText(datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S"))
+        self.tb_date.setText(datetime.now().strftime("%m/%d/%Y, %H:%M:%S"))
 
 
 app = QApplication(sys.argv)

@@ -1,4 +1,4 @@
-import datetime,cbpro,yaml,os.path
+import datetime,cbpro,yaml,os.path,os
 from datetime import datetime,timedelta
 from math import ceil
 #function that make some checks about the sense of the dates inserted
@@ -13,20 +13,53 @@ def read_yaml(file_path):
     with open(file_path, "r") as f:
         return yaml.safe_load(f)
 
-def write_currency_data(filename,data):
+
+def update_currencies_data(DATA_PATH,cbproClient):
+    """[summary] each time the program is opened, it loads the new unrecorded data.
+
+    Args:
+        DATA_PATH (string): [path to the data recording dir]
+    """
+
+    print("updating data to today's values...")
+    listOfCurrencies=list()
+    for (dirpath, dirnames, filenames) in os.walk("data"):
+        listOfCurrencies += [os.path.join(dirpath, file) for file in filenames] #This is the list of all the currencies you have to update
+        for currency in listOfCurrencies:
+            print(currency)
+            update_currency(currency,DATA_PATH,cbproClient)
+def update_currency(currency_filename,DATA_PATH,cbproClient):
+    """[summary] function that checks the last record written and starts to make multiple requests 
+                 to cover the time passed from that day to the present
+
+    Args:
+        currency_filename (string): filename of the currency you have to update
+    """
+    f=open(currency_filename,"r") #the currency file is opened
+    data=f.read()
+    for line in data.split("\n"):
+        if line!="":
+            lastline=line # i overwrite the same variable so that i got only the last line
+    #Now that i know the last line ,I can get the last date recorded and start multiple request to fit the hole 
+    data_lastline=lastline.split(",")
+    lastdate=datetime.fromtimestamp(float(data_lastline[0])).strftime('%Y-%m-%dT%H:%M:%S') # this is the last date recorded in iso 8601
+    print("last recorded was:",lastdate)
+    get_historical_data_coinbase("BTC-USD",start_date=lastdate,end_date=datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),cbproClient=cbproClient)
+
+def write_currency_data(filename,data,DATA_PATH):
     """[summary] function that records data obtained in a csv in order to analyse them later.
 
     Args:
         filename (string): [string containing the name of the file will be opened]
         data (list of dict): [list of dict containing the following keyword: unix_time,low,high,open,close,volume]
     """
-    tmp_path=RECORD_DATA_PATH+'coinbase/'+filename+'.csv'
+    tmp_path=DATA_PATH+'coinbase/'+filename+'.csv'
     print("PATH",tmp_path)
     if os.path.isfile(tmp_path):
         print("file exists")
         f=open(tmp_path,"a")     
         for candle in data:
-            string_data=candle["unix_time"]+","+candle["low"]+","+candle["high"]+","+candle["open"]+","+candle["close"]+","+candle["volume"]+"\n"
+            string_data="\n"+candle["unix_time"]+","+candle["low"]+","+candle["high"]+","+candle["open"]+","+candle["close"]+","+candle["volume"]
             f.write(string_data)
         f.close()   
     else:
@@ -36,7 +69,7 @@ def write_currency_data(filename,data):
         title="Unix time,low,high,open,close,volume\n"
         f.write(title)
         for candle in data:
-            string_data=candle["unix_time"]+","+candle["low"]+","+candle["high"]+","+candle["open"]+","+candle["close"]+","+candle["volume"]+"\n"
+            string_data=candle["unix_time"]+","+candle["low"]+","+candle["high"]+","+candle["open"]+","+candle["close"]+","+candle["volume"]
             f.write(string_data)
         f.close()
     print("Recording data on "+filename+".csv")
@@ -63,15 +96,15 @@ function that organises cb request in a clean dict.
         candles_list.append(candle)
     return candles_list
 
-def buy_crypto(_amount):
-    print(cbpro_client_sand.place_market_order(product_id='BTC-USD', side='buy',funds='00.00'))  # place market order (for some reason, the first doesn't work, so you'll better making a fake order with 0 euros
-    print(cbpro_client_sand.place_market_order(product_id='BTC-USD', side='buy', funds='400.00'))  # place market order
+def buy_crypto(_amount,cbproClient):
+    print(cbproClient.place_market_order(product_id='BTC-USD', side='buy',funds='00.00'))  # place market order (for some reason, the first doesn't work, so you'll better making a fake order with 0 euros
+    print(cbproClient.place_market_order(product_id='BTC-USD', side='buy', funds='400.00'))  # place market order
 
-def sell_crypto(_amount):
-    print(cbpro_client_sand.place_market_order(product_id='BTC-USD', side='sell',funds='00.00'))  # place market order (for some reason, the first doesn't work, so you'll better making a fake order with 0 euros
-    print(cbpro_client_sand.place_market_order(product_id='BTC-USD', side='sell', funds='400.00'))  # place market order
+def sell_crypto(_amount,cbproClient):
+    print(cbproClient.place_market_order(product_id='BTC-USD', side='sell',funds='00.00'))  # place market order (for some reason, the first doesn't work, so you'll better making a fake order with 0 euros
+    print(cbproClient.place_market_order(product_id='BTC-USD', side='sell', funds='400.00'))  # place market order
 
-def get_historical_data_coinbase(currency,start_date,end_date):
+def get_historical_data_coinbase(currency,start_date,end_date,cbproClient):
     """[summary] function that makes multiple requests in order to fetch all the necessary data
     I choose a granularity of 1 min in order to get the most precise analisys
     start and end time in iso 8601 format
@@ -95,8 +128,9 @@ def get_historical_data_coinbase(currency,start_date,end_date):
     n_cycle=period/60 # this variable tells me how many candles i need to do in order to cover all the period
     if n_cycle<=300: # i don't need to do multiple requests (maximum is 300 candles for request)
         print("start",start_date,"end",end_date)
-        raw_data=cbpro_client_sand.get_product_historic_rates('BTC-USD',start=start_date,end=end_date,granularity=60)
+        raw_data=cbproClient.get_product_historic_rates('BTC-USD',start=start_date,end=end_date,granularity=60)
         cb_request=get_clean_cb_request_data(raw_data)
+        write_currency_data(currency,cb_request,os.getcwd()+"/data/")
         print("#######################")
     else:
         print("number of requests in order to cover all the period:",n_cycle/300)# in this way i discover how many requests I have to do
@@ -107,13 +141,13 @@ def get_historical_data_coinbase(currency,start_date,end_date):
             #TODO: correct this if statement( you need to convert to float number or find a way to compare date in utc form)
             if (utc_dt_start+timedelta(hours=(i+1)*5)) > utc_dt_end: # essentially, the right limit of the last subperiod can exceed our 'end date', recording useless data
                 print("from:",temp_start,"to:",end_date)
-                raw_data=cbpro_client_sand.get_product_historic_rates('BTC-USD',start=temp_start,end=end_date,granularity=60)
+                raw_data=cbproClient.get_product_historic_rates('BTC-USD',start=temp_start,end=end_date,granularity=60)
                 cb_request=get_clean_cb_request_data(raw_data)
-                write_currency_data(currency,cb_request)
+                write_currency_data(currency,cb_request,os.getcwd()+"/data/")
             else:
                 print("from:",temp_start,"to:",temp_end)
                 #print(cbpro_client_sand.get_product_historic_rates('BTC-USD',start=temp_start,end=temp_end,granularity=60))
-                raw_data=cbpro_client_sand.get_product_historic_rates('BTC-USD',start=temp_start,end=temp_end,granularity=60) #creation of a temp variable where data is stored before being cleaned and organised
+                raw_data=cbproClient.get_product_historic_rates('BTC-USD',start=temp_start,end=temp_end,granularity=60) #creation of a temp variable where data is stored before being cleaned and organised
                 cb_request=get_clean_cb_request_data(raw_data)
-                write_currency_data(currency,cb_request)
+                write_currency_data(currency,cb_request,os.getcwd()+"/data/")
             print()
