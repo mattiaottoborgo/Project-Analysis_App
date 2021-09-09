@@ -27,9 +27,10 @@ class MainWindow(QMainWindow):
         CB_PASSPHRASE= config_dict["COINBASE_API_CONF"]["CB_PASSPHRASE"]
         CB_SECRET= config_dict["COINBASE_API_CONF"]["CB_SECRET"]
         CB_URL= "http://api-public.sandbox.pro.coinbase.com"
+        currencies_list=config_dict["DATA"]["currencies"]
 
         cbpro_client_sand = cbpro.AuthenticatedClient(CB_KEY,CB_SECRET,CB_PASSPHRASE,CB_URL) #initialise virtual account
-        update_currencies_data(RECORD_DATA_PATH,cbpro_client_sand)
+        update_currencies_data(RECORD_DATA_PATH,cbpro_client_sand,currencies_list)
         #window settings
         min_width=1200
         min_height=600
@@ -96,8 +97,10 @@ class MainWindow(QMainWindow):
         print("you selected",selected_mode)
         if selected_mode=="Real Time":
             self.main_page.mode_frame_layout.setCurrentIndex(1)
+            self.main_page.mode_frame_column2_layout.setCurrentIndex(1)
         elif selected_mode=="BackTesting":
             self.main_page.mode_frame_layout.setCurrentIndex(0)
+            self.main_page.mode_frame_column2_layout.setCurrentIndex(0)
     def update_main(self): #function that allows to  dinamically update the main window
         self.tb_date.setText(datetime.now().strftime("%m/%d/%Y, %H:%M:%S"))
 

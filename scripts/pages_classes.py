@@ -77,8 +77,6 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
 
         #layout definition
         self.main_layout=QHBoxLayout()
-        self.column1_layout=QVBoxLayout()
-        self.column2_layout=QVBoxLayout()
         self.column3_layout=QVBoxLayout()
 
         ####first column####
@@ -92,10 +90,7 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
         self.mode_frame_layout.addWidget(self.mode_backtesting_frame) # aggiungo nel layout delle modalità i widget rappresentanti le n modalità
         self.mode_frame_layout.addWidget(self.mode_realtime_frame)    # aggiungo nel layout delle modalità i widget rappresentanti le n modalità
         self.mode_frame_layout.setCurrentIndex(1) # imposto la modalità Realtime come quella iniziale
-        self.mode_frame_widget=QWidget()
-        self.mode_frame_widget.setLayout(self.mode_frame_layout)
-        self.column1_layout.addWidget(self.mode_frame_widget)
-        self.column1_layout.addStretch(1)
+        
 
 
             #backtesting frame
@@ -161,12 +156,30 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
 
         
 
-        #####second column####  the graph about real time 
-        self.second_column_label=QLabel("Grafico")
-        self.column2_layout.addWidget(self.second_column_label)
+        #####second column####  
+
+        #backtesting
+        self.mode_frame_column2_layout = QStackedLayout()
+        self.column2_layout_backtesting=QVBoxLayout()
+        self.second_column_label=QLabel("Grafico Backtesting")
+        self.column2_layout_backtesting.addWidget(self.second_column_label)
         
         self.canvas = MplCanvas(self, width=8, height=4, dpi=100)
-        self.column2_layout.addWidget(self.canvas)
+        self.column2_layout_backtesting.addWidget(self.canvas)
+        self.show()
+        self.column2_layout_backtesting.addStretch(1)
+
+        self.column2_layout_backtesting_widget=QWidget()
+        self.column2_layout_backtesting_widget.setLayout(self.column2_layout_backtesting)
+        
+        
+        #realtime
+        self.column2_layout_realtime=QVBoxLayout()
+        self.second_column_label=QLabel("Grafico RealTime")
+        self.column2_layout_realtime.addWidget(self.second_column_label)
+        
+        self.canvas = MplCanvas(self, width=8, height=4, dpi=100)
+        self.column2_layout_realtime.addWidget(self.canvas)
 
         self.counter=0
         self.n_data = 10
@@ -178,13 +191,20 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
         self.update_plot()
 
         self.show()
+        self.column2_layout_realtime.addStretch(1)
+        self.column2_layout_realtime_widget=QWidget()
+        self.column2_layout_realtime_widget.setLayout(self.column2_layout_realtime)
 
         # Setup a timer to trigger the redraw by calling update_plot.
         self.timer = QtCore.QTimer()
         self.timer.setInterval(1000)
         self.timer.timeout.connect(self.update_plot)
         self.timer.start()
-        self.column2_layout.addStretch(1) #push the object up in the frame
+        
+        self.mode_frame_column2_layout.addWidget(self.column2_layout_backtesting_widget)
+        self.mode_frame_column2_layout.addWidget(self.column2_layout_realtime_widget)
+        self.mode_frame_column2_layout.setCurrentIndex(1)
+
 
         ####third column####
         result_column3_label=QLabel("Results:")
@@ -228,9 +248,9 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
         ####adding the three columns to the main page####
         
         column1_frame=QWidget()
-        column1_frame.setLayout(self.column1_layout)
+        column1_frame.setLayout(self.mode_frame_layout)
         column2_frame=QWidget()
-        column2_frame.setLayout(self.column2_layout)
+        column2_frame.setLayout(self.mode_frame_column2_layout)
         column3_frame=QWidget()
         column3_frame.setLayout(self.column3_layout)
         column1_frame.setFixedWidth(300)

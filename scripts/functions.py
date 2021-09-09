@@ -5,16 +5,33 @@ from math import ceil
 def checkDate(firstDate,secondDate):
     if firstDate>=secondDate:
         return"Error: dates not in the right order!"
-    if secondDate>datetime.datetime.now().timestamp():
-        return "Error: date must be before "+datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    if secondDate>datetime.now().timestamp():
+        return "Error: date must be before "+datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     return True
 
 def read_yaml(file_path):
     with open(file_path, "r") as f:
         return yaml.safe_load(f)
 
-
-def update_currencies_data(DATA_PATH,cbproClient):
+def get_last_update(currency,DATA_PATH):
+    currency_filename=currency+".csv"
+    currency_path=DATA_PATH+"coinbase/"+currency_filename
+    if os.path.isfile(currency_path): 
+        f=open(currency_path,"r") #the currency file is opened
+        data=f.read()
+        f.close()
+        for line in data.split("\n"):
+            if line!="":
+                lastline=line # i overwrite the same variable so that i got only the last line
+        #Now that i know the last line ,I can get the last date recorded and start multiple request to fit the hole 
+        data_lastline=lastline.split(",")
+        lastdate=datetime.fromtimestamp(float(data_lastline[0])).strftime('%Y-%m-%dT%H:%M:%S') # this is the last date recorded in iso 8601
+        #print("last recorded was:",lastdate)
+    else:
+        lastdate="2021-09-01T00:00:00"
+    print("last update on:",lastdate)
+    return lastdate
+def update_currencies_data(DATA_PATH,cbproClient,currencies_string):
     """[summary] each time the program is opened, it loads the new unrecorded data.
 
     Args:
@@ -22,28 +39,20 @@ def update_currencies_data(DATA_PATH,cbproClient):
     """
 
     print("updating data to today's values...")
-    listOfCurrencies=list()
-    for (dirpath, dirnames, filenames) in os.walk("data"):
-        listOfCurrencies += [os.path.join(dirpath, file) for file in filenames] #This is the list of all the currencies you have to update
-        for currency in listOfCurrencies:
-            print(currency)
-            update_currency(currency,DATA_PATH,cbproClient)
-def update_currency(currency_filename,DATA_PATH,cbproClient):
+    listOfCurrencies=currencies_string.split(",")
+    #for (dirpath, dirnames, filenames) in os.walk("data"):
+        #listOfCurrencies += [os.path.join(dirpath, file) for file in filenames] #This is the list of all the currencies you have to update
+    for currency in listOfCurrencies:
+        print(currency)
+        update_currency(currency,DATA_PATH,cbproClient)
+def update_currency(currency,DATA_PATH,cbproClient):
     """[summary] function that checks the last record written and starts to make multiple requests 
                  to cover the time passed from that day to the present
 
     Args:
         currency_filename (string): filename of the currency you have to update
     """
-    f=open(currency_filename,"r") #the currency file is opened
-    data=f.read()
-    for line in data.split("\n"):
-        if line!="":
-            lastline=line # i overwrite the same variable so that i got only the last line
-    #Now that i know the last line ,I can get the last date recorded and start multiple request to fit the hole 
-    data_lastline=lastline.split(",")
-    lastdate=datetime.fromtimestamp(float(data_lastline[0])).strftime('%Y-%m-%dT%H:%M:%S') # this is the last date recorded in iso 8601
-    print("last recorded was:",lastdate)
+    lastdate=get_last_update(currency,DATA_PATH)
     get_historical_data_coinbase("BTC-USD",start_date=lastdate,end_date=datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),cbproClient=cbproClient)
 
 def write_currency_data(filename,data,DATA_PATH):
@@ -66,10 +75,10 @@ def write_currency_data(filename,data,DATA_PATH):
         print(filename+".csv not found. Creating it for the first time")
         
         f=open(tmp_path,"w")
-        title="Unix time,low,high,open,close,volume\n"
+        title="Unix time,low,high,open,close,volume"
         f.write(title)
         for candle in data:
-            string_data=candle["unix_time"]+","+candle["low"]+","+candle["high"]+","+candle["open"]+","+candle["close"]+","+candle["volume"]
+            string_data="\n"+candle["unix_time"]+","+candle["low"]+","+candle["high"]+","+candle["open"]+","+candle["close"]+","+candle["volume"]
             f.write(string_data)
         f.close()
     print("Recording data on "+filename+".csv")
@@ -93,7 +102,8 @@ function that organises cb request in a clean dict.
         candle["open"]=str(c[3])
         candle["close"]=str(c[4])
         candle["volume"]=str(c[5])
-        candles_list.append(candle)
+        #candles_list.append(candle) #incorrect, since this method collect data in the opposite order, creating issues in gathering data in a chronological way.
+        candles_list.insert(0,candle)
     return candles_list
 
 def buy_crypto(_amount,cbproClient):
