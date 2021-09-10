@@ -2,6 +2,7 @@
 
 import sys,os
 import datetime,cbpro
+from datetime import timezone, tzinfo
 from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget,QHBoxLayout,QGridLayout,QStackedLayout,QPushButton,QToolBar
 from PyQt5.QtGui import QPalette, QColor
 from PyQt5.QtCore import Qt, QSize,QTimer
@@ -13,8 +14,7 @@ class Color(QWidget):
         self.setAutoFillBackground(True)
         palette = self.palette()
         palette.setColor(QPalette.Window, QColor(color))
-        self.setPalette(palette)
-      
+        self.setPalette(palette)     
 class MainWindow(QMainWindow):
 
     def __init__(self):
@@ -31,13 +31,15 @@ class MainWindow(QMainWindow):
 
         cbpro_client_sand = cbpro.AuthenticatedClient(CB_KEY,CB_SECRET,CB_PASSPHRASE,CB_URL) #initialise virtual account
         update_currencies_data(RECORD_DATA_PATH,cbpro_client_sand,currencies_list)
-        #window settings
+        
+# ------------------------------ window setting ------------------------------ #
+
         min_width=1200
         min_height=600
         self.setWindowTitle("My Analisys_App")
         self.setMinimumSize(min_width, min_height)
 
-        #toolbar definition
+# ---------------------------------- toolbar --------------------------------- #
 
         self.toolbar = QToolBar("My main toolbar")
         self.toolbar.setIconSize(QSize(16,16)) # important for icons! Otherwise padding makes them invisible!
@@ -45,13 +47,15 @@ class MainWindow(QMainWindow):
         self.addToolBar(self.toolbar)
         self.tb_label=QLabel("toolbar")
         self.tb_label_mode=QLabel("Analysis Mode")
-        self.tb_date=QLabel(datetime.now().strftime("%m/%d/%Y, %H:%M:%S")) #shows current date
+        timezone_offset = +2  # GMT (UTC08:00)
+        self.tzinfo = timezone(timedelta(hours=timezone_offset))
+        self.tb_date=QLabel(datetime.now(self.tzinfo).strftime("%m/%d/%Y, %H:%M:%S")) #shows current date
 
         self.tb_btn = QPushButton("log out")
         self.tb_btn.pressed.connect(self.go_to_login_page)
         self.mode_choice=QComboBox(self)
-        self.mode_choice.addItem("Real Time")
         self.mode_choice.addItem("BackTesting")
+        self.mode_choice.addItem("Real Time")
         self.mode_choice.activated[str].connect(self.onModeSelected)
 
         self.toolbar.addWidget(self.tb_label)
@@ -96,13 +100,13 @@ class MainWindow(QMainWindow):
     def onModeSelected(self,selected_mode):
         print("you selected",selected_mode)
         if selected_mode=="Real Time":
-            self.main_page.mode_frame_layout.setCurrentIndex(1)
-            self.main_page.mode_frame_column2_layout.setCurrentIndex(1)
+            self.main_page.column1_layout.setCurrentIndex(1)
+            self.main_page.column2_layout.setCurrentIndex(1)
         elif selected_mode=="BackTesting":
-            self.main_page.mode_frame_layout.setCurrentIndex(0)
-            self.main_page.mode_frame_column2_layout.setCurrentIndex(0)
+            self.main_page.column1_layout.setCurrentIndex(0)
+            self.main_page.column2_layout.setCurrentIndex(0)
     def update_main(self): #function that allows to  dinamically update the main window
-        self.tb_date.setText(datetime.now().strftime("%m/%d/%Y, %H:%M:%S"))
+        self.tb_date.setText(datetime.now(self.tzinfo).strftime("%Y/%m/%d, %H:%M:%S"))
 
 
 app = QApplication(sys.argv)
