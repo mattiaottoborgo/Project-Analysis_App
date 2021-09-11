@@ -63,6 +63,7 @@ class MainWindow(QMainWindow):
         self.toolbar.addWidget(self.tb_label_mode)
         self.toolbar.addWidget(self.mode_choice)
         self.toolbar.addWidget(self.tb_date)
+        
 
 
         self.toolbar.setVisible(False)

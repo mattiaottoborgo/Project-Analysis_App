@@ -5,10 +5,11 @@ import datetime
 import matplotlib
 matplotlib.use('Qt5Agg')
 from PyQt5 import QtCore, QtWidgets
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt,QDate,QDateTime
 from PyQt5.QtWidgets import QApplication, QComboBox, QLabel, QMainWindow, QSizePolicy, QVBoxLayout, QWidget,QHBoxLayout,QGridLayout,QStackedLayout,QPushButton,QToolBar,QSpacerItem,QLineEdit,QDateTimeEdit,QFormLayout,QDoubleSpinBox,QMessageBox
 from PyQt5.QtGui import QPalette, QColor
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 import matplotlib.pyplot as plt
 from scripts.functions import *
 
@@ -26,8 +27,8 @@ class proto_page(QWidget): #prototype of page widget to be used in a QStackedLay
 class MplCanvas(FigureCanvas):
 
     def __init__(self, parent=None, width=5, height=4, dpi=100):
-        fig, self.axes = plt.subplots(figsize=(5, 4), dpi=200)
-        super(MplCanvas, self).__init__(fig)
+        self.fig, self.axes = plt.subplots(figsize=(5, 4), dpi=200)
+        super(MplCanvas, self).__init__(self.fig)
 
 
 
@@ -81,6 +82,12 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
         self.column2_layout = QStackedLayout()
         self.column2_layout.setCurrentIndex(0)
         self.column3_layout=QVBoxLayout()
+
+        # Setup a timer to trigger the redraw by calling update_plot.
+        self.timer = QtCore.QTimer()
+        self.timer.setInterval(10)
+        self.timer.timeout.connect(self.update_plot)
+        self.timer.start()
 # ---------------------------------------------------------------------------- #
 #                              Backtesting Layout                              #
 # ---------------------------------------------------------------------------- #
@@ -97,8 +104,8 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
         self.backtesting_label=QLabel("Parametri BackTesting")
 
         parameters_form_layout = QFormLayout(self.backtesting_column1_widget) # form layout in which i put a label with all the parameters to be setted
-        self.init_date=QDateTimeEdit(self.backtesting_column1_widget)
-        self.end_date=QDateTimeEdit(self.backtesting_column1_widget) #these two widget define the period that needs to be analysed
+        self.init_date=QDateTimeEdit(QDateTime(2021,9,1,00,00,00),self.backtesting_column1_widget)
+        self.end_date=QDateTimeEdit(QDateTime.currentDateTime(),self.backtesting_column1_widget) #these two widget define the period that needs to be analysed
         
         investing_amount=QDoubleSpinBox(self.backtesting_column1_widget)
         investing_amount.setMinimum(1)
@@ -124,14 +131,15 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
         parameters_form_widget=QWidget()
         parameters_form_widget.setLayout(parameters_form_layout)
 
-        analise_button=QPushButton("analise")
-        analise_button.pressed.connect(self.analise)
+        self.analise_button=QPushButton("analise")
+        self.analise_button.clicked.connect(self.analise)
+        
 
         self.backtesting_column1_layout.addWidget(self.backtesting_label)
         self.backtesting_column1_layout.addWidget(crypto_currencies_choice)
         self.backtesting_column1_layout.addWidget(marketplace_crypto_choice)
         self.backtesting_column1_layout.addWidget(parameters_form_widget)
-        self.backtesting_column1_layout.addWidget(analise_button)
+        self.backtesting_column1_layout.addWidget(self.analise_button)
         self.backtesting_column1_layout.addStretch(1) #push the object up in the frame
 
 
@@ -144,10 +152,17 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
 
         self.second_column_label=QLabel("Grafico Backtesting")
         self.backtesting_column2_layout.addWidget(self.second_column_label)
-
+        
         self.canvas = MplCanvas(self, width=8, height=4, dpi=100)
+        self.test_x_data=[0.2,2,3,4,5,6,7,8,9]
+        self.test_y_data=[0.3,3,5,3,7,5,2,2,6]
+        self.old_test_y=self.test_y_data
+        self.canvas.axes.plot(self.test_x_data, self.test_y_data,'r',label="line 1")
+        self.canvas.draw()
+        
         self.backtesting_column2_layout.addWidget(self.canvas)
-        self.show()
+        
+       
         self.backtesting_column2_layout.addStretch(1)
 
         
@@ -194,8 +209,8 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
         self.second_column_label=QLabel("Grafico RealTime")
         self.realtime_column2_layout.addWidget(self.second_column_label)
         
-        self.canvas = MplCanvas(self, width=8, height=4, dpi=100)
-        self.realtime_column2_layout.addWidget(self.canvas)
+        self.canvas2 = MplCanvas(self, width=8, height=4, dpi=100)
+        self.realtime_column2_layout.addWidget(self.canvas2)
 
         
         #this creates some initials random data
@@ -212,11 +227,6 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
         
         self.realtime_column2_layout.addStretch(1)
 
-        # Setup a timer to trigger the redraw by calling update_plot.
-        self.timer = QtCore.QTimer()
-        self.timer.setInterval(1000)
-        self.timer.timeout.connect(self.update_plot)
-        self.timer.start()
 
  # ---------------------------------------------------------------------------- #
  #                 column 3 - for both backtesting and realtime                 #
@@ -279,7 +289,7 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
         self.main_layout.addWidget(column3_frame)
 
         self.setLayout(self.main_layout)
-#TODO: move this functions in another file
+
     def update_plot(self):
         # Drop off the first y element, append a new one.
         self.x1data = list(range(self.counter,self.n_data+self.counter))
@@ -287,17 +297,24 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
         self.x2data = list(range(self.counter,self.n_data+self.counter))
         self.y2data = self.y2data[1:] + [random.randint(0, 20)]
 
-        self.canvas.axes.cla()  # Clear the canvas.
-        self.canvas.axes.plot(self.x1data, self.y1data, 'r',label="line 1")
-        self.canvas.axes.plot(self.x2data, self.y2data, 'b', label="line 2")
-        self.canvas.axes.legend(bbox_to_anchor=(0,1.02,1,0.2), loc="lower left",
+
+        self.canvas2.axes.cla()  # Clear the canvas.
+        self.canvas2.axes.plot(self.x1data, self.y1data, 'r',label="line 1")
+        self.canvas2.axes.plot(self.x2data, self.y2data, 'b', label="line 2")
+        self.canvas2.axes.legend(bbox_to_anchor=(0,1.02,1,0.2), loc="lower left",
                 mode="expand", borderaxespad=0, ncol=3)
     
         # Trigger the canvas to update and redraw.
-        self.canvas.draw()
+        self.canvas2.draw()
         
         self.counter+=1
+
+        if self.test_y_data!=self.old_test_y:
+            self.canvas.axes.cla()
+            self.canvas.axes.plot(self.test_x_data,self.test_y_data,'b',label="line 1")
+            self.canvas.draw()
        # print(self.xdata)
+        self.old_test_y=self.test_y_data
     def analise(self): # 
         #in this function, i get all the parameters and start to analise them
         
@@ -305,6 +322,15 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
         init_date_string=self.init_date.dateTime().toPyDateTime()
         end_date_string=self.end_date.dateTime().toPyDateTime() # dateTime() returns QDateTime, toPyDateTime() converts to datetime.datetime
         state=checkDate(init_date_string.timestamp(),end_date_string.timestamp())# timestamp converts into unix format, useful in order to make some checks
+        canvas = MplCanvas(self, width=8, height=4, dpi=100)
+        test_x_data=[1,2,3,4,5,6,7,8,9]
+        test_y_data=[random.randint(0, 10) for i in range(9)]
+        self.test_y_data=test_y_data
+        canvas.axes.plot(test_x_data, test_y_data,'b',label="line 1")
+        canvas.draw()
+        #self.backtesting_column2_layout.addWidget(canvas)
+        #self.backtesting_column2_layout.removeWidget(self.canvas)
+
         if state==True:
             self.init_date_label.setText(init_date_string.strftime('%Y-%m-%d %H:%M:%S'))
             self.end_date_label.setText(end_date_string.strftime('%Y-%m-%d %H:%M:%S'))
@@ -312,6 +338,9 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
             self.init_date_label_widget.setVisible(True)
             self.end_date_label_widget.setVisible(True)
             self.balance_label_widget.setVisible(True)
+            
+
+
         else:
             self.showError(state) #creates a warning box with the desired message!
     def getBalance(self): #TODO: develop a function used to get a realistic result
@@ -323,3 +352,6 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
         dlg.setStandardButtons(QMessageBox.Ok)
         dlg.setIcon(QMessageBox.Critical)
         button = dlg.exec()
+
+
+ 
