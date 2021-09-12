@@ -3,6 +3,7 @@ import random
 import time
 import datetime
 import matplotlib
+import pandas as pd
 matplotlib.use('Qt5Agg')
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtCore import Qt,QDate,QDateTime
@@ -107,27 +108,27 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
         self.init_date=QDateTimeEdit(QDateTime(2021,9,1,00,00,00),self.backtesting_column1_widget)
         self.end_date=QDateTimeEdit(QDateTime.currentDateTime(),self.backtesting_column1_widget) #these two widget define the period that needs to be analysed
         
-        investing_amount=QDoubleSpinBox(self.backtesting_column1_widget)
-        investing_amount.setMinimum(1)
-        investing_amount.setMaximum(1000)
-        investing_amount.setPrefix("$") #TODO: when you change currencies, change prefix
+        investing_amount_bt=QDoubleSpinBox(self.backtesting_column1_widget)
+        investing_amount_bt.setMinimum(1)
+        investing_amount_bt.setMaximum(1000)
+        investing_amount_bt.setPrefix("$") #TODO: when you change currencies, change prefix
         #region currencies choice
-        crypto_currencies_choice=QComboBox(self.backtesting_column1_widget)
-        crypto_currencies_choice.addItem("BTC-EUR")
-        crypto_currencies_choice.addItem("BTC-USD")
-        crypto_currencies_choice.addItem("ETH-EUR")
-        crypto_currencies_choice.addItem("ETH-USD")
+        self.crypto_currencies_choice_bt=QComboBox(self.backtesting_column1_widget)
+        self.crypto_currencies_choice_bt.addItem("BTC-EUR")
+        self.crypto_currencies_choice_bt.addItem("BTC-USD")
+        self.crypto_currencies_choice_bt.addItem("ETH-EUR")
+        self.crypto_currencies_choice_bt.addItem("ETH-USD")
         #endregion
         #region marketplace choice
-        marketplace_crypto_choice=QComboBox(self.backtesting_column1_widget)
-        marketplace_crypto_choice.addItem("market1")
-        marketplace_crypto_choice.addItem("market2")
-        marketplace_crypto_choice.addItem("market3")
+        self.marketplace_crypto_choice_bt=QComboBox(self.backtesting_column1_widget)
+        self.marketplace_crypto_choice_bt.addItem("coinbase")
+        self.marketplace_crypto_choice_bt.addItem("binance")
+        self.marketplace_crypto_choice_bt.addItem("market3")
         #endregion
 
         parameters_form_layout.addRow(self.tr("from:"), self.init_date)
         parameters_form_layout.addRow(self.tr("to:"), self.end_date)
-        parameters_form_layout.addRow(self.tr("investing amount"),investing_amount)
+        parameters_form_layout.addRow(self.tr("investing amount"),investing_amount_bt)
         parameters_form_widget=QWidget()
         parameters_form_widget.setLayout(parameters_form_layout)
 
@@ -136,8 +137,8 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
         
 
         self.backtesting_column1_layout.addWidget(self.backtesting_label)
-        self.backtesting_column1_layout.addWidget(crypto_currencies_choice)
-        self.backtesting_column1_layout.addWidget(marketplace_crypto_choice)
+        self.backtesting_column1_layout.addWidget(self.crypto_currencies_choice_bt)
+        self.backtesting_column1_layout.addWidget(self.marketplace_crypto_choice_bt)
         self.backtesting_column1_layout.addWidget(parameters_form_widget)
         self.backtesting_column1_layout.addWidget(self.analise_button)
         self.backtesting_column1_layout.addStretch(1) #push the object up in the frame
@@ -180,23 +181,23 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
         
         
         self.realtime_label=QLabel("Parametri RealTime")
-        crypto_currencies_choice=QComboBox(self.realtime_column1_widget)
-        crypto_currencies_choice.addItem("BTC-EUR")
-        crypto_currencies_choice.addItem("BTC-USD")
-        crypto_currencies_choice.addItem("ETH-EUR")
-        crypto_currencies_choice.addItem("ETH-USD")
-        marketplace_crypto_choice=QComboBox(self.realtime_column1_widget)
-        marketplace_crypto_choice.addItem("market1")
-        marketplace_crypto_choice.addItem("market2")
-        marketplace_crypto_choice.addItem("market3")
-        investing_amount=QDoubleSpinBox(self.realtime_column1_widget)
-        investing_amount.setMinimum(1)
-        investing_amount.setMaximum(1000)
-        investing_amount.setPrefix("$") #TODO: when you change currencies, change prefix
+        self.crypto_currencies_choice_rt=QComboBox(self.realtime_column1_widget)
+        self.crypto_currencies_choice_rt.addItem("BTC-EUR")
+        self.crypto_currencies_choice_rt.addItem("BTC-USD")
+        self.crypto_currencies_choice_rt.addItem("ETH-EUR")
+        self.crypto_currencies_choice_rt.addItem("ETH-USD")
+        self.marketplace_crypto_choice_rt=QComboBox(self.realtime_column1_widget)
+        self.marketplace_crypto_choice_rt.addItem("market1")
+        self.marketplace_crypto_choice_rt.addItem("market2")
+        self.marketplace_crypto_choice_rt.addItem("market3")
+        investing_amount_rt=QDoubleSpinBox(self.realtime_column1_widget)
+        investing_amount_rt.setMinimum(1)
+        investing_amount_rt.setMaximum(1000)
+        investing_amount_rt.setPrefix("$") #TODO: when you change currencies, change prefix
         self.realtime_column1_layout.addWidget(self.realtime_label)
-        self.realtime_column1_layout.addWidget(crypto_currencies_choice)
-        self.realtime_column1_layout.addWidget(marketplace_crypto_choice)
-        self.realtime_column1_layout.addWidget(investing_amount)
+        self.realtime_column1_layout.addWidget(self.crypto_currencies_choice_rt)
+        self.realtime_column1_layout.addWidget(self.marketplace_crypto_choice_rt)
+        self.realtime_column1_layout.addWidget(investing_amount_rt)
         self.realtime_column1_layout.addStretch(1) #push the object up in the frame
 
 # --------------------------------- column 2 --------------------------------- #
@@ -291,27 +292,31 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
         self.setLayout(self.main_layout)
 
     def update_plot(self):
-        # Drop off the first y element, append a new one.
+
+ # --------------------------- get some random data --------------------------- #
         self.x1data = list(range(self.counter,self.n_data+self.counter))
         self.y1data = self.y1data[1:] + [random.randint(0, 20)]
         self.x2data = list(range(self.counter,self.n_data+self.counter))
         self.y2data = self.y2data[1:] + [random.randint(0, 20)]
 
-
+ # --------------------------- about realtime graph --------------------------- #
         self.canvas2.axes.cla()  # Clear the canvas.
         self.canvas2.axes.plot(self.x1data, self.y1data, 'r',label="line 1")
         self.canvas2.axes.plot(self.x2data, self.y2data, 'b', label="line 2")
-        self.canvas2.axes.legend(bbox_to_anchor=(0,1.02,1,0.2), loc="lower left",
-                mode="expand", borderaxespad=0, ncol=3)
-    
-        # Trigger the canvas to update and redraw.
-        self.canvas2.draw()
-        
+        self.canvas2.axes.legend(bbox_to_anchor=(0,1.02,1,0.2), loc="lower left", mode="expand", borderaxespad=0, ncol=3)
+        self.canvas2.draw()  
         self.counter+=1
 
+# -------------------------- about backtesting graph ------------------------- #
+        #if data shown changes, then we updaye the passed in the figure (graph)
+        
         if self.test_y_data!=self.old_test_y:
             self.canvas.axes.cla()
-            self.canvas.axes.plot(self.test_x_data,self.test_y_data,'b',label="line 1")
+            #self.canvas.axes.plot(self.test_x_data,self.test_y_data,'b',label="line 1")
+            datetime_string=list(self.data["unix_time"])
+            high=list(self.data["high"])
+            print(high)
+            self.canvas.axes.plot(datetime_string,high,'b',label="line 1")
             self.canvas.draw()
        # print(self.xdata)
         self.old_test_y=self.test_y_data
@@ -321,6 +326,9 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
             #here i convert the dates the user has selected
         init_date_string=self.init_date.dateTime().toPyDateTime()
         end_date_string=self.end_date.dateTime().toPyDateTime() # dateTime() returns QDateTime, toPyDateTime() converts to datetime.datetime
+        marketplace_string=str(self.marketplace_crypto_choice_bt.currentText())
+        coin_chosen_string=str(self.crypto_currencies_choice_bt.currentText())
+        self.data=get_data_graph(init_date_string,end_date_string,marketplace_string,coin_chosen_string)
         state=checkDate(init_date_string.timestamp(),end_date_string.timestamp())# timestamp converts into unix format, useful in order to make some checks
         canvas = MplCanvas(self, width=8, height=4, dpi=100)
         test_x_data=[1,2,3,4,5,6,7,8,9]

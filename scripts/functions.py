@@ -1,6 +1,11 @@
 import datetime,cbpro,yaml,os.path,os
+import pandas as pd
 from datetime import datetime,timedelta,timezone
 from math import ceil
+
+GENERAL_PATH=os.getcwd()
+
+
 #function that make some checks about the sense of the dates inserted
 def checkDate(firstDate,secondDate):
     if firstDate>=secondDate:
@@ -175,3 +180,37 @@ def get_historical_data_coinbase(currency,start_date,end_date,cbproClient):
                 cb_request=get_clean_cb_request_data(raw_data)
                 write_currency_data(currency,cb_request,os.getcwd()+"/data/")
             print()
+
+def get_data_graph(start_date,end_date,marketplace=None,coin=None):
+    print("parameters used for backtesting analysis:")
+    print("from:",start_date,"to:",end_date)
+    print("marketplace:",marketplace,"coin:",coin)
+    unix_time_start=float(start_date.timestamp())
+    unix_time_end=float(end_date.timestamp())
+    #print("dates in unix format",unix_time_start,unix_time_end)
+    config_dict=read_yaml(GENERAL_PATH+"/config.yaml")
+    DATA_PATH= config_dict["PATH"]["DATA_PATH"]
+    filename=DATA_PATH+marketplace+"/"+coin+".csv"
+    if  not os.path.isfile(filename):
+        print( "il file non esiste!")
+        return " "
+    f=open(filename,"r")
+    data=[]
+    f.readline() # skip the first line with titles
+    raw=f.read().split("\n")
+    f.close()
+    for line in raw:
+        if line!="":
+            stick={} # dict containing all data about one particular moment
+            parameters=line.split(",")
+            stick["unix_time"]=parameters[0]
+            if unix_time_start<=float(stick["unix_time"])<=unix_time_end: #passing only stick in the period required
+                stick["low"]=float(parameters[1])
+                stick["high"]=float(parameters[2])
+                stick["open"]=float(parameters[3])
+                stick["close"]=float(parameters[4])
+                stick["volume"]=float(parameters[5])
+                data.append(stick)
+            #print(datetime.fromtimestamp(float(unix_time)).strftime('%Y-%m-%dT%H:%M:%S'))
+            data_dt=pd.DataFrame(data)
+    return data_dt
