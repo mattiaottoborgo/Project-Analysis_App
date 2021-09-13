@@ -3,8 +3,13 @@ import pandas as pd
 from datetime import datetime,timedelta,timezone
 from math import ceil
 
-GENERAL_PATH=os.getcwd()
 
+def read_yaml(file_path):
+    with open(file_path, "r") as f:
+        return yaml.safe_load(f)
+GENERAL_PATH=os.getcwd()
+config_dict=read_yaml(GENERAL_PATH+"/config.yaml")
+DATETIME_FORMAT=config_dict["CONFIG"]["datetime"]
 
 #function that make some checks about the sense of the dates inserted
 def checkDate(firstDate,secondDate):
@@ -13,10 +18,6 @@ def checkDate(firstDate,secondDate):
     if secondDate>datetime.now().timestamp():
         return "Error: date must be before "+datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     return True
-
-def read_yaml(file_path):
-    with open(file_path, "r") as f:
-        return yaml.safe_load(f)
 
 def get_last_update(currency,DATA_PATH):
     currency_filename=currency+".csv"
@@ -102,9 +103,16 @@ function that organises cb request in a clean dict.
     """
     candles_list=[]
     for c in raw: #request is made up of candles
+        success=False
+        print(c)
+        try:
+            float(c[0])
+            success=True
+        except:
+            print("ERROR: you passed this instead of a set of values!",c)
         candle={} # creation of a dict to store data efficiently
         candle["unix_time"]=str(c[0])# time is in unix format
-        if last_unix==None or (float(candle["unix_time"])>last_unix)  : #check made in order to be sure about recording data only once.
+        if success==True and (last_unix==None or (float(candle["unix_time"])>last_unix)) : #check made in order to be sure about recording data only once.
             candle["low"]=str(c[1])
             candle["high"]=str(c[2])
             candle["open"]=str(c[3])
@@ -142,26 +150,31 @@ def get_historical_data_coinbase(currency,start_date,end_date,cbproClient):
     timestamp_start = (utc_dt_start - datetime(1970, 1, 1)).total_seconds()
     timestamp_end = (utc_dt_end - datetime(1970, 1, 1)).total_seconds()
 
+    #since sometimes it doesn't retreive all data, I chose to make a request with some extra data that i won't consider, just to get what I need.
+    start_date_datetime_obj=datetime.strptime(start_date,'%Y-%m-%dT%H:%M:%S')
+    start_date_unix= (start_date_datetime_obj-timedelta(hours=2) - datetime(1970, 1, 1)).total_seconds() # here i remove the timezone offset
+    start_date_with_offset=start_date_datetime_obj-timedelta(hours=2) # here i substract two hours to get more data
+    start_date_with_offset_unix=(start_date_with_offset- datetime(1970, 1, 1)).total_seconds() # here i convert the new start date in unix
     #first, calculation of the period to be analysed 
-    period=timestamp_end-timestamp_start
+    period=timestamp_end-start_date_with_offset_unix
     #then, I divide it in subperiods of about 4 hours, so that i can get historical data of 1 day in 6 requests
     #since i can get only 300 candles for request, i can get 300 minutes of records, that means i get 5 hours of data per request
     n_cycle=period/60 # this variable tells me how many candles i need to do in order to cover all the period
     if n_cycle<=300: # i don't need to do multiple requests (maximum is 300 candles for request)
-        print("start",start_date,"end",end_date, "<300 candles","n cycle",n_cycle)
-        start_date_datetime_obj=datetime.strptime(start_date,'%Y-%m-%dT%H:%M:%S')
-        start_date_unix= (start_date_datetime_obj-timedelta(hours=2) - datetime(1970, 1, 1)).total_seconds()
-        start_date_with_offset=start_date_datetime_obj-timedelta(hours=2)
+        print("timestamps:",timestamp_end,timestamp_start)
+        print("start",start_date,"end",end_date, "<300 candles","n cycle",n_cycle,period)
+
+
         start_date_string=start_date_with_offset.strftime('%Y-%m-%dT%H:%M:%S')
         raw_data=cbproClient.get_product_historic_rates('BTC-USD',start=start_date_string,end=end_date,granularity=60)
-        print("raw",raw_data)
+        #print("raw",raw_data)
         cb_request=get_clean_cb_request_data(raw_data,start_date_unix)
         write_currency_data(currency,cb_request,os.getcwd()+"/data/")
         print("#######################")
     else:
         print("number of requests in order to cover all the period:",n_cycle/300)# in this way i discover how many requests I have to do
         for i in range(ceil(n_cycle/300)):
-            temp_start=(utc_dt_start+timedelta(hours=i*5)-timedelta(hours=2)).strftime('%Y-%m-%d %H:%M:%S')
+            temp_start=(start_date_with_offset+timedelta(hours=i*5)-timedelta(hours=2)).strftime('%Y-%m-%d %H:%M:%S')
             temp_end=(utc_dt_start+timedelta(hours=(i+1)*5)-timedelta(hours=2)).strftime('%Y-%m-%d %H:%M:%S')
 
             print("cycle n.",i)
@@ -169,14 +182,14 @@ def get_historical_data_coinbase(currency,start_date,end_date,cbproClient):
             if (utc_dt_start+timedelta(hours=(i+1)*5)) > utc_dt_end: # essentially, the right limit of the last subperiod can exceed our 'end date', recording useless data
                 print("from:",temp_start,"to:",end_date)
                 raw_data=cbproClient.get_product_historic_rates('BTC-USD',start=temp_start,end=end_date,granularity=60)
-                print("raw1",raw_data)
+              #  print("raw1",raw_data)
                 cb_request=get_clean_cb_request_data(raw_data)
                 write_currency_data(currency,cb_request,os.getcwd()+"/data/")
             else:
                 print("from:",temp_start,"to:",temp_end)
                 #print(cbpro_client_sand.get_product_historic_rates('BTC-USD',start=temp_start,end=temp_end,granularity=60))
                 raw_data=cbproClient.get_product_historic_rates('BTC-USD',start=temp_start,end=temp_end,granularity=60) #creation of a temp variable where data is stored before being cleaned and organised
-                print("raw2",raw_data)
+               # print("raw2",raw_data)
                 cb_request=get_clean_cb_request_data(raw_data)
                 write_currency_data(currency,cb_request,os.getcwd()+"/data/")
             print()

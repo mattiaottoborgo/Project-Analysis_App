@@ -14,6 +14,10 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 import matplotlib.pyplot as plt
 from scripts.functions import *
 
+GENERAL_PATH=os.getcwd()
+config_dict=read_yaml(GENERAL_PATH+"/config.yaml")
+DATETIME_FORMAT=config_dict["CONFIG"]["datetime"]
+
 
 class proto_page(QWidget): #prototype of page widget to be used in a QStackedLayout
 
@@ -29,6 +33,7 @@ class MplCanvas(FigureCanvas):
 
     def __init__(self, parent=None, width=5, height=4, dpi=100):
         self.fig, self.axes = plt.subplots(figsize=(5, 4), dpi=200)
+        self.max_x_ticks=100 # you can personalise it in order to select the thickness of the plot
         super(MplCanvas, self).__init__(self.fig)
 
 
@@ -114,8 +119,8 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
         investing_amount_bt.setPrefix("$") #TODO: when you change currencies, change prefix
         #region currencies choice
         self.crypto_currencies_choice_bt=QComboBox(self.backtesting_column1_widget)
-        self.crypto_currencies_choice_bt.addItem("BTC-EUR")
         self.crypto_currencies_choice_bt.addItem("BTC-USD")
+        self.crypto_currencies_choice_bt.addItem("BTC-EUR")
         self.crypto_currencies_choice_bt.addItem("ETH-EUR")
         self.crypto_currencies_choice_bt.addItem("ETH-USD")
         #endregion
@@ -182,8 +187,8 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
         
         self.realtime_label=QLabel("Parametri RealTime")
         self.crypto_currencies_choice_rt=QComboBox(self.realtime_column1_widget)
-        self.crypto_currencies_choice_rt.addItem("BTC-EUR")
         self.crypto_currencies_choice_rt.addItem("BTC-USD")
+        self.crypto_currencies_choice_rt.addItem("BTC-EUR")
         self.crypto_currencies_choice_rt.addItem("ETH-EUR")
         self.crypto_currencies_choice_rt.addItem("ETH-USD")
         self.marketplace_crypto_choice_rt=QComboBox(self.realtime_column1_widget)
@@ -313,13 +318,42 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
         if self.test_y_data!=self.old_test_y:
             self.canvas.axes.cla()
             #self.canvas.axes.plot(self.test_x_data,self.test_y_data,'b',label="line 1")
+            print(self.data["unix_time"])
             datetime_string=list(self.data["unix_time"])
             high=list(self.data["high"])
-            print(high)
-            self.canvas.axes.plot(datetime_string,high,'b',label="line 1")
+            filtered_datetime,filtered_high=self.adjust_periods_for_plotting(datetime_string,high)
+            self.canvas.axes.plot(filtered_datetime,filtered_high,'b',label="line 1")
+            #self.canvas.axes.set_xticklabels() #TODO: function that filter ticks to 10, see function saved in bookmark
+            #self.canvas.axes.set_yticklabels()
             self.canvas.draw()
        # print(self.xdata)
         self.old_test_y=self.test_y_data
+    def adjust_periods_for_plotting(self,x,y):
+        """This function reduces the sticks used during plotting. The reductionm is based on the length of the 
+           period analysed.
+
+        Args:
+            x (list): x axis to be adapted in order to reduce plotting time
+            y (list): y axis to be adapted in order to reduce plotting time
+
+        Returns:
+            new_x (list): adapted x axis
+            new_y (list): adapted y axis
+        """
+        #converting the first and last element to datetime obj
+        start_datetime=datetime.fromtimestamp(int(x[0]))
+        end_datetime=datetime.fromtimestamp(int(x[-1]))
+        #checking the length of the period
+        period=end_datetime-start_datetime
+        unit_period=period/20 # this is the difference of time between each stick plotted
+        unit_period_in_minutes=round(unit_period.seconds% 3600 / 60.0)## i get an integer representing the minutes between each plotted stuc
+        print(start_datetime,end_datetime,period,unit_period_in_minutes)
+        #now you can loop through the x axis and filter only the ones with the datetime selected.
+        filtered_x=x[::unit_period_in_minutes]
+        print(filtered_x)
+        filtered_y=y[::unit_period_in_minutes]
+                  
+        return filtered_x,filtered_y
     def analise(self): # 
         #in this function, i get all the parameters and start to analise them
         
