@@ -218,6 +218,7 @@ def get_data_graph(start_date,end_date,marketplace=None,coin=None):
             parameters=line.split(",")
             stick["unix_time"]=parameters[0]
             if unix_time_start<=float(stick["unix_time"])<=unix_time_end: #passing only stick in the period required
+                stick["string_time"]=datetime.fromtimestamp(float(parameters[0])).strftime('%Y-%m-%dT%H:%M:%S')
                 stick["low"]=float(parameters[1])
                 stick["high"]=float(parameters[2])
                 stick["open"]=float(parameters[3])
