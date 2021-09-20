@@ -38,6 +38,8 @@ class MainWindow(QMainWindow):
         min_height=600
         self.setWindowTitle("My Analisys_App")
         self.setMinimumSize(min_width, min_height)
+        self.activated_backtesting_graph=True
+        self.activated_realtime_graph=False
 
 # ---------------------------------- toolbar --------------------------------- #
 
@@ -103,9 +105,13 @@ class MainWindow(QMainWindow):
         if selected_mode=="Real Time":
             self.main_page.column1_layout.setCurrentIndex(1)
             self.main_page.column2_layout.setCurrentIndex(1)
+            self.activated_backtesting_graph=False
+            self.activated_realtime_graph=True
         elif selected_mode=="BackTesting":
             self.main_page.column1_layout.setCurrentIndex(0)
             self.main_page.column2_layout.setCurrentIndex(0)
+            self.activated_backtesting_graph=True
+            self.activated_realtime_graph=False
     def update_main(self): #function that allows to  dinamically update the main window
         self.tb_date.setText(datetime.now(self.tzinfo).strftime("%Y/%m/%d, %H:%M:%S"))
 

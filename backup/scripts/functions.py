@@ -1,6 +1,6 @@
-import datetime,cbpro,yaml,os.path,os,pytz
+import datetime,cbpro,yaml,os.path,os
 import pandas as pd
-from datetime import date, datetime,timedelta,timezone
+from datetime import datetime,timedelta,timezone
 from math import ceil
 
 
@@ -19,21 +19,7 @@ def checkDate(firstDate,secondDate):
     if secondDate>datetime.now().timestamp():
         return "Error: date must be before "+datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     return True
-def new_get_last_update(currency,DATA_PATH):
-    currency_path=DATA_PATH+"coinbase/"+currency
-    sorted_files=sorted(os.listdir(currency_path),reverse=True) #sorting files from the newer to older
-    if len(os.listdir(currency_path))!=0: #checks if there is some data by checking if the dir is empty or not,
-        last_date_file=DATA_PATH+"coinbase/"+currency+"/"+sorted_files[0]
-        f=open (last_date_file,"r")
-        last_line=f.readlines()[-1] # pick the last line
-        f.close()
-        last_datetime=last_line.split(",")[0]#here i split the last line and pick the first element
-    else:
-        last_datetime="2021-09-15T00:00:00"
 
-    last_datetime_string=datetime.fromtimestamp(float(last_datetime)).strftime('%Y-%m-%dT%H:%M:%S')
-    print("last update on",last_datetime_string)
-    return last_datetime_string
 def get_last_update(currency,DATA_PATH):
     currency_filename=currency+".csv"
     currency_path=DATA_PATH+"coinbase/"+currency_filename
@@ -49,7 +35,7 @@ def get_last_update(currency,DATA_PATH):
         lastdate=datetime.fromtimestamp(float(data_lastline[0])).strftime('%Y-%m-%dT%H:%M:%S') # this is the last date recorded in iso 8601
         #print("last recorded was:",lastdate)
     else:
-        lastdate="2021-09-15T00:00:00"
+        lastdate="2021-09-01T00:00:00"
     print("last update on:",lastdate)
     return lastdate
 def update_currencies_data(DATA_PATH,cbproClient,currencies_string):
@@ -73,39 +59,10 @@ def update_currency(currency,DATA_PATH,cbproClient):
     Args:
         currency_filename (string): filename of the currency you have to update
     """
-    lastdate=new_get_last_update(currency,DATA_PATH)
-    #new_get_last_update(currency,DATA_PATH)
+    lastdate=get_last_update(currency,DATA_PATH)
     timezone_offset = 0  # GMT (UTC08:00)
     tzinfo = timezone(timedelta(hours=timezone_offset))
     get_historical_data_coinbase("BTC-USD",start_date=lastdate,end_date=datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),cbproClient=cbproClient)
-
-def new_write_currency_data(date,filename,data,DATA_PATH):
-    """[summary] function that records data obtained in a csv in order to analyse them later.
-
-    Args:
-        filename (string): [string containing the name of the file will be opened]
-        data (list of dict): [list of dict containing the following keyword: unix_time,low,high,open,close,volume]
-    """
-    tmp_path=DATA_PATH+'coinbase/'+filename+"/"+date+'.csv'
-    #print("PATH",tmp_path)
-    if os.path.isfile(tmp_path):
-        print("file exists")
-        f=open(tmp_path,"a")     
-        for candle in data:
-            string_data=candle["unix_time"]+","+candle["low"]+","+candle["high"]+","+candle["open"]+","+candle["close"]+","+candle["volume"]+"\n"
-            f.write(string_data)
-        f.close()   
-    else:
-        print(filename+".csv not found. Creating it for the first time")
-        
-        f=open(tmp_path,"w")
-        title="Unix time,low,high,open,close,volume"
-        f.write(title)
-        for candle in data:
-            string_data="\n"+candle["unix_time"]+","+candle["low"]+","+candle["high"]+","+candle["open"]+","+candle["close"]+","+candle["volume"]
-            f.write(string_data)
-        f.close()
-    print("Recording data on "+filename+".csv")
 
 def write_currency_data(filename,data,DATA_PATH):
     """[summary] function that records data obtained in a csv in order to analyse them later.
@@ -175,41 +132,15 @@ def sell_crypto(_amount,cbproClient):
 def unpack_data(data):
     """[summary]
     This function takes the cleaned data and organised them in pocket. Each pocket represent a day. In this way, accessing data is faster.
-    strategy:
-    1 check the date for each element
-    2 if date doens't change, we add the element to the same dict['date']=values
-    3 else, we create another dict and append the last one.
-    
     Args:
         data (list): data cleaned by 'get_clean_cb_request_data' function
 
     Returns:
-        unpacked_data (list of dict) : [description]
+        unpacked_data (dict) : [description]
     """    
-    #print("this is our data",data)
+    print("this is our data",data)
     unpacked_data=[]
-    first_day=data[0]
-    curr_day=datetime.fromtimestamp(float(first_day['unix_time'])).strftime('%Y-%m-%d')
-    dict_el={}
-    data_about_day=[]
-    for element in data:
-        day=datetime.fromtimestamp(float(element['unix_time'])).strftime('%Y-%m-%d')
-        if day==curr_day:
-            data_about_day.append(element)
-        else:
-            print("date changed")
-            dict_el[curr_day]=data_about_day #add to dict the last element of previous day
-            unpacked_data.append(dict_el)
-            dict_el={} # reset dict
-            curr_day=day
-            data_about_day=[] # reset data about new day with the first element
-            data_about_day.append(element)
-    dict_el[curr_day]=data_about_day
-    unpacked_data.append(dict_el)# adding the last date, since the last cycle can't be added due to the logic of the above 'for' cycle
-    print("unpacked",unpacked_data)
-        
     return unpacked_data
-
 def get_historical_data_coinbase(currency,start_date,end_date,cbproClient):
     """[summary] function that makes multiple requests in order to fetch all the necessary data
     I choose a granularity of 1 min in order to get the most precise analisys
@@ -223,59 +154,46 @@ def get_historical_data_coinbase(currency,start_date,end_date,cbproClient):
     
 
     #conversion of dates from iso8601 to unix
+    hours_offset=2 # indicated in hours
+    my_timezone_offset=timedelta(hours=hours_offset)
     utc_dt_start = datetime.strptime(start_date, '%Y-%m-%dT%H:%M:%S')
     utc_dt_end = datetime.strptime(end_date, '%Y-%m-%dT%H:%M:%S')
-    print("start",start_date,"end",end_date)
     timestamp_start = (utc_dt_start - datetime(1970, 1, 1)).total_seconds()
     timestamp_end = (utc_dt_end - datetime(1970, 1, 1)).total_seconds()
 
     #since sometimes it doesn't retreive all data, I chose to make a request with some extra data that i won't consider, just to get what I need.
-    start_date_with_offset=datetime.strptime(start_date,'%Y-%m-%dT%H:%M:%S') -timedelta(hours=2)
-    end_date_with_offset=datetime.strptime(end_date,'%Y-%m-%dT%H:%M:%S') -timedelta(hours=2)
-    #end_date_with_offset_string=end_date_with_offset.strftime('%Y-%m-%dT%H:%M:%S')
-    #osservazione: con il 'timedelta(hours=2)' non ti funziona su lunghi periodi, senza non ti funziona sui corti
+    start_date_with_offset=datetime.strptime(start_date,'%Y-%m-%dT%H:%M:%S')-timedelta(hours=2)
     start_date_unix= (start_date_with_offset-timedelta(hours=2) - datetime(1970, 1, 1)).total_seconds() # here i remove the timezone offset
     start_date_with_offset_unix=(start_date_with_offset- datetime(1970, 1, 1)).total_seconds() # here i convert the new start date in unix
-    
     #first, calculation of the period to be analysed 
-    period=timestamp_end-timestamp_start
+    period=timestamp_end-start_date_with_offset_unix
     #then, I divide it in subperiods of about 4 hours, so that i can get historical data of 1 day in 6 requests
     #since i can get only 300 candles for request, i can get 300 minutes of records, that means i get 5 hours of data per request
     n_cycle=period/60 # this variable tells me how many candles i need to do in order to cover all the period
     if n_cycle<=300: # i don't need to do multiple requests (maximum is 300 candles for request)
-        #print("timestamps:",timestamp_end,timestamp_start)
+        print("timestamps:",timestamp_end,timestamp_start)
         print("start",start_date,"end",end_date, "<300 candles","n cycle",n_cycle,period)
         start_date_string=start_date_with_offset.strftime('%Y-%m-%dT%H:%M:%S')
-        end_date_with_offset_string=end_date_with_offset.strftime('%Y-%m-%dT%H:%M:%S')
-        raw_data=cbproClient.get_product_historic_rates('BTC-USD',start=start_date_string,end=end_date_with_offset_string,granularity=60)
+        raw_data=cbproClient.get_product_historic_rates('BTC-USD',start=start_date_string,end=end_date,granularity=60)
         #print("raw",raw_data)
         cb_request=get_clean_cb_request_data(raw_data,start_date_unix)
-        div_data=unpack_data(cb_request)
-        for _dict in div_data:
-            keys=list(_dict.keys())
-            print(keys[0])
-            new_write_currency_data(keys[0],currency,cb_request,os.getcwd()+"/data/")
+        unpack_data(cb_request)
         write_currency_data(currency,cb_request,os.getcwd()+"/data/")
         print("#######################")
     else:
         print("number of requests in order to cover all the period:",n_cycle/300)# in this way i discover how many requests I have to do
         for i in range(ceil(n_cycle/300)):
-            temp_start=(start_date_with_offset+timedelta(hours=i*5)).strftime('%Y-%m-%d %H:%M:%S')
+            temp_start=(start_date_with_offset+timedelta(hours=i*5)-timedelta(hours=2)).strftime('%Y-%m-%d %H:%M:%S')
             temp_end=(utc_dt_start+timedelta(hours=(i+1)*5)-timedelta(hours=2)).strftime('%Y-%m-%d %H:%M:%S')
 
             print("cycle n.",i)
             #TODO: correct this if statement( you need to convert to float number or find a way to compare date in utc form)
             if (utc_dt_start+timedelta(hours=(i+1)*5)) > utc_dt_end: # essentially, the right limit of the last subperiod can exceed our 'end date', recording useless data
                 print("from:",temp_start,"to:",end_date)
-                raw_data=cbproClient.get_product_historic_rates('BTC-USD',start=temp_start,end=end_date_with_offset,granularity=60)
+                raw_data=cbproClient.get_product_historic_rates('BTC-USD',start=temp_start,end=end_date,granularity=60)
               #  print("raw1",raw_data)
                 cb_request=get_clean_cb_request_data(raw_data)
                 unpack_data(cb_request)
-                div_data=unpack_data(cb_request)
-                for _dict in div_data:
-                    keys=list(_dict.keys())
-                    print(keys[0])
-                    new_write_currency_data(keys[0],currency,cb_request,os.getcwd()+"/data/")
                 write_currency_data(currency,cb_request,os.getcwd()+"/data/")
             else:
                 print("from:",temp_start,"to:",temp_end)
@@ -284,11 +202,6 @@ def get_historical_data_coinbase(currency,start_date,end_date,cbproClient):
                # print("raw2",raw_data)
                 cb_request=get_clean_cb_request_data(raw_data)
                 unpack_data(cb_request)
-                div_data=unpack_data(cb_request)
-                for _dict in div_data:
-                    keys=list(_dict.keys())
-                    print(keys[0])
-                    new_write_currency_data(keys[0],currency,cb_request,os.getcwd()+"/data/")
                 write_currency_data(currency,cb_request,os.getcwd()+"/data/")
             print()
 
@@ -326,19 +239,3 @@ def get_data_graph(start_date,end_date,marketplace=None,coin=None):
             #print(datetime.fromtimestamp(float(unix_time)).strftime('%Y-%m-%dT%H:%M:%S'))
             data_dt=pd.DataFrame(data)
     return data_dt
-def new_get_data_graph(start_date,end_date,marketplace=None,coin=None):
-    #strategy
-    #get the day of the first date
-    #get the date of the last date
-    #for cycle that opens all the file between them (check also if it's within the same one)
-    #read and save all the date between them
-    start_date_string=start_date.strftime('%Y-%m-%d')+".csv"
-    end_date_string=end_date.strftime('%Y-%m-%d')+".csv"
-    currency_path=DATA_PATH+marketplace+"/"+coin
-    sorted_files=sorted(os.listdir(currency_path))
-    filtered_files=[]
-    for date_file in sorted_files:
-        if start_date_string<=date_file<=end_date_string: # check which files belong to the range that will be analysed.
-            filtered_files.append(date_file)
-    print("to be checked:",filtered_files) #these are the files that you will read (see how in the old function)
-    pass

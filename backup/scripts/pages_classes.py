@@ -380,7 +380,6 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
         marketplace_string=str(self.marketplace_crypto_choice_bt.currentText())
         coin_chosen_string=str(self.crypto_currencies_choice_bt.currentText())
         self.data=get_data_graph(init_date_string,end_date_string,marketplace_string,coin_chosen_string)
-        new_get_data_graph(init_date_string,end_date_string,marketplace_string,coin_chosen_string)
         state=checkDate(init_date_string.timestamp(),end_date_string.timestamp())# timestamp converts into unix format, useful in order to make some checks
         test_x_data=[1,2,3,4,5,6,7,8,9]
         test_y_data=[random.randint(0, 10) for i in range(9)]
