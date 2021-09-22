@@ -28,10 +28,11 @@ def new_get_last_update(currency,DATA_PATH):
         last_line=f.readlines()[-1] # pick the last line
         f.close()
         last_datetime=last_line.split(",")[0]#here i split the last line and pick the first element
+        last_datetime_string=datetime.fromtimestamp(float(last_datetime)).strftime('%Y-%m-%dT%H:%M:%S')
     else:
-        last_datetime="2021-09-15T00:00:00"
+        last_datetime_string="2021-09-01T00:00:00"
 
-    last_datetime_string=datetime.fromtimestamp(float(last_datetime)).strftime('%Y-%m-%dT%H:%M:%S')
+    #last_datetime_string=datetime.fromtimestamp(float(last_datetime)).strftime('%Y-%m-%dT%H:%M:%S')
     print("last update on",last_datetime_string)
     return last_datetime_string
 def get_last_update(currency,DATA_PATH):
@@ -49,7 +50,7 @@ def get_last_update(currency,DATA_PATH):
         lastdate=datetime.fromtimestamp(float(data_lastline[0])).strftime('%Y-%m-%dT%H:%M:%S') # this is the last date recorded in iso 8601
         #print("last recorded was:",lastdate)
     else:
-        lastdate="2021-09-15T00:00:00"
+        lastdate="2021-09-01T00:00:00"
     print("last update on:",lastdate)
     return lastdate
 def update_currencies_data(DATA_PATH,cbproClient,currencies_string):
@@ -197,7 +198,7 @@ def unpack_data(data):
         if day==curr_day:
             data_about_day.append(element)
         else:
-            print("date changed")
+            #print("date changed")
             dict_el[curr_day]=data_about_day #add to dict the last element of previous day
             unpacked_data.append(dict_el)
             dict_el={} # reset dict
@@ -206,7 +207,7 @@ def unpack_data(data):
             data_about_day.append(element)
     dict_el[curr_day]=data_about_day
     unpacked_data.append(dict_el)# adding the last date, since the last cycle can't be added due to the logic of the above 'for' cycle
-    print("unpacked",unpacked_data)
+    #print("unpacked",unpacked_data)
         
     return unpacked_data
 
@@ -253,9 +254,9 @@ def get_historical_data_coinbase(currency,start_date,end_date,cbproClient):
         div_data=unpack_data(cb_request)
         for _dict in div_data:
             keys=list(_dict.keys())
-            print(keys[0])
-            new_write_currency_data(keys[0],currency,cb_request,os.getcwd()+"/data/")
-        write_currency_data(currency,cb_request,os.getcwd()+"/data/")
+           # print(keys[0])
+            new_write_currency_data(keys[0],currency,_dict[keys[0]],os.getcwd()+"/data/")
+        #write_currency_data(currency,cb_request,os.getcwd()+"/data/")
         print("#######################")
     else:
         print("number of requests in order to cover all the period:",n_cycle/300)# in this way i discover how many requests I have to do
@@ -270,26 +271,24 @@ def get_historical_data_coinbase(currency,start_date,end_date,cbproClient):
                 raw_data=cbproClient.get_product_historic_rates('BTC-USD',start=temp_start,end=end_date_with_offset,granularity=60)
               #  print("raw1",raw_data)
                 cb_request=get_clean_cb_request_data(raw_data)
-                unpack_data(cb_request)
                 div_data=unpack_data(cb_request)
                 for _dict in div_data:
                     keys=list(_dict.keys())
-                    print(keys[0])
-                    new_write_currency_data(keys[0],currency,cb_request,os.getcwd()+"/data/")
-                write_currency_data(currency,cb_request,os.getcwd()+"/data/")
+                   # print(keys[0])
+                    new_write_currency_data(keys[0],currency,_dict[keys[0]],os.getcwd()+"/data/")
+                #write_currency_data(currency,cb_request,os.getcwd()+"/data/")
             else:
                 print("from:",temp_start,"to:",temp_end)
                 #print(cbpro_client_sand.get_product_historic_rates('BTC-USD',start=temp_start,end=temp_end,granularity=60))
                 raw_data=cbproClient.get_product_historic_rates('BTC-USD',start=temp_start,end=temp_end,granularity=60) #creation of a temp variable where data is stored before being cleaned and organised
                # print("raw2",raw_data)
                 cb_request=get_clean_cb_request_data(raw_data)
-                unpack_data(cb_request)
                 div_data=unpack_data(cb_request)
                 for _dict in div_data:
                     keys=list(_dict.keys())
-                    print(keys[0])
-                    new_write_currency_data(keys[0],currency,cb_request,os.getcwd()+"/data/")
-                write_currency_data(currency,cb_request,os.getcwd()+"/data/")
+                   # print(keys[0])
+                    new_write_currency_data(keys[0],currency,_dict[keys[0]],os.getcwd()+"/data/")
+                #write_currency_data(currency,cb_request,os.getcwd()+"/data/")
             print()
 
 def get_data_graph(start_date,end_date,marketplace=None,coin=None):
@@ -334,6 +333,8 @@ def new_get_data_graph(start_date,end_date,marketplace=None,coin=None):
     #read and save all the date between them
     start_date_string=start_date.strftime('%Y-%m-%d')+".csv"
     end_date_string=end_date.strftime('%Y-%m-%d')+".csv"
+    unix_time_start=float(start_date.timestamp())
+    unix_time_end=float(end_date.timestamp())
     currency_path=DATA_PATH+marketplace+"/"+coin
     sorted_files=sorted(os.listdir(currency_path))
     filtered_files=[]
@@ -341,4 +342,30 @@ def new_get_data_graph(start_date,end_date,marketplace=None,coin=None):
         if start_date_string<=date_file<=end_date_string: # check which files belong to the range that will be analysed.
             filtered_files.append(date_file)
     print("to be checked:",filtered_files) #these are the files that you will read (see how in the old function)
-    pass
+    data=[]
+    for file in filtered_files: # now I take all the data between the two limit, checking all the filtered file
+        complete_file_path=DATA_PATH+marketplace+"/"+coin+"/"+file
+        f=open(complete_file_path,"r")
+        f.readline() # skip the first line with titles
+        raw=f.read().split("\n")
+        f.close()
+        for line in raw:
+            if line!="":
+                stick={} # dict containing all data about one particular moment
+                parameters=line.split(",")
+                stick["unix_time"]=parameters[0]
+                if unix_time_start<=float(stick["unix_time"])<=unix_time_end: #passing only stick in the period required
+                    stick["string_time"]=datetime.fromtimestamp(float(parameters[0])).strftime('%Y-%m-%dT%H:%M:%S')
+                    stick["low"]=float(parameters[1])
+                    stick["high"]=float(parameters[2])
+                    stick["open"]=float(parameters[3])
+                    stick["close"]=float(parameters[4])
+                    stick["volume"]=float(parameters[5])
+                    data.append(stick)
+                elif float(stick["unix_time"])>unix_time_end: # if I overlap the upper limit, break the loop and go on.
+                    break
+    #print("all data needed:",data)
+    print("number of stick:",len(data))
+    data_dt=pd.DataFrame(data)
+    print(data_dt)
+    return data_dt
