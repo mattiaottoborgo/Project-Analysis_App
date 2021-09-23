@@ -251,12 +251,17 @@ def get_historical_data_coinbase(currency,start_date,end_date,cbproClient):
         raw_data=cbproClient.get_product_historic_rates('BTC-USD',start=start_date_string,end=end_date_with_offset_string,granularity=60)
         #print("raw",raw_data)
         cb_request=get_clean_cb_request_data(raw_data,start_date_unix)
-        div_data=unpack_data(cb_request)
-        for _dict in div_data:
-            keys=list(_dict.keys())
-           # print(keys[0])
-            new_write_currency_data(keys[0],currency,_dict[keys[0]],os.getcwd()+"/data/")
-        #write_currency_data(currency,cb_request,os.getcwd()+"/data/")
+        print("result of my request",cb_request,"lastdate",start_date_string,"len request",len(cb_request))
+        first_date=datetime.fromtimestamp(float(cb_request[-1]["unix_time"])).strftime('%Y-%m-%dT%H:%M:%S')
+        print(first_date==start_date,first_date)
+        if first_date==start_date:
+            print("already up to date!")
+        else:
+            cb_request.pop(0)# here i remove the first element to prevent on duplicates during recording
+            div_data=unpack_data(cb_request)
+            for _dict in div_data:
+                keys=list(_dict.keys())
+                new_write_currency_data(keys[0],currency,_dict[keys[0]],os.getcwd()+"/data/")
         print("#######################")
     else:
         print("number of requests in order to cover all the period:",n_cycle/300)# in this way i discover how many requests I have to do
