@@ -12,6 +12,8 @@ from PyQt5.QtWidgets import QApplication, QComboBox, QLabel, QMainWindow, QSizeP
 from PyQt5.QtGui import QPalette, QColor
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.dates import (YEARLY, DateFormatter,
+                              rrulewrapper, RRuleLocator, drange)
 import matplotlib.pyplot as plt
 from scripts.functions import *
 from operator import itemgetter 
@@ -34,10 +36,15 @@ class proto_page(QWidget): #prototype of page widget to be used in a QStackedLay
 
 class MplCanvas(FigureCanvas):
 
-    def __init__(self, parent=None, width=5, height=4, dpi=100):
-        self.fig, self.axes = plt.subplots(figsize=(5, 4), dpi=200)
+    def __init__(self, parent=None, width=5, height=5, dpi=200):
+        self.fig, self.axes = plt.subplots(figsize=(5, 5), dpi=200)
         self.max_x_ticks=10 # you can personalise it in order to select the thickness of the plot
-        
+        #formatter = DateFormatter('%m/%d/%y')
+       # self.axes.xaxis.set_major_formatter(formatter)
+        #self.axes.fmt_xdata = lambda x: "{0:f}".format(x)
+        self.axes.format_xdata = DateFormatter('%Y-%m-%d %H-%M')
+        self.axes.fmt_ydata = lambda x: "{0:f}".format(x)
+
         super(MplCanvas, self).__init__(self.fig)
 
 
@@ -304,13 +311,13 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
         self.setLayout(self.main_layout)
 
     def update_plot(self):
- # --------------------------- get some random data --------------------------- #
+     # --------------------------- get some random data --------------------------- #
         self.x1data = list(range(self.counter,self.n_data+self.counter))
         self.y1data = self.y1data[1:] + [random.randint(0, 20)]
         self.x2data = list(range(self.counter,self.n_data+self.counter))
         self.y2data = self.y2data[1:] + [random.randint(0, 20)]
 
- # --------------------------- about realtime graph --------------------------- #
+     # --------------------------- about realtime graph --------------------------- #
         if self.Parent.activated_realtime_graph == True:
             self.canvas2.axes.cla()  # Clear the canvas.
             self.canvas2.axes.plot(self.x1data, self.y1data, 'r',label="line 1")
@@ -319,22 +326,24 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
             self.canvas2.draw()  
             self.counter+=1
 
-# -------------------------- about backtesting graph ------------------------- #
+     # -------------------------- about backtesting graph ------------------------- #
         #if data shown changes, then we updaye the passed in the figure (graph)
         
         if self.test_y_data!=self.old_test_y:
             self.canvas.axes.cla()
-            #self.canvas.axes.plot(self.test_x_data,self.test_y_data,'b',label="line 1")
-            #print(self.data["unix_time"])
-            datetime_unix_list=list(self.data["unix_time"])
-            datetime_strinf_list=list(self.data["string_time"])
-            high=list(self.data["high"])
-            filtered_datetime,filtered_high=self.adjust_periods_for_plotting(datetime_unix_list,high)
-            self.canvas.axes.plot(filtered_datetime,filtered_high,'b',label="line 1")
+            filtered_data=self.new_adjust_periods_for_plotting(self.data)
+           # self.canvas.axes.plot(filtered_datetime,filtered_high,'b',label="line 1")
+           #TODO:funzione che converte lista di stringhe in lista di datetime
+            datetime_obj_list=[]
+            for element in filtered_data["string_time"]:
+                datetime_obj=datetime.strptime(element,"%Y/%m/%d %H:%M")
+                datetime_obj_list.append(datetime_obj)
+            self.canvas.axes.plot_date(datetime_obj_list,filtered_data["high"],'b',label="line 1")
+            self.canvas.fig.set_tight_layout(True)
             x_tick=[] # here ticks will be stored 
             f = lambda m, n: [i*n//m + n//(2*m) for i in range(m)] # function that even select elements ,'m' is how many element u wnat to pick, 'n' the length of the rrray
-            idx=f(self.canvas.max_x_ticks,len(filtered_datetime))     
-            x_tick=(itemgetter(*idx)(filtered_datetime)) #here it return the sublist with the evenly spaced elements
+            idx=f(self.canvas.max_x_ticks,len(datetime_obj_list))     
+            x_tick=(itemgetter(*idx)(datetime_obj_list)) #here it return the sublist with the evenly spaced elements
             self.canvas.axes.set_xticks(x_tick) # set plotted tick
             self.canvas.axes.set_xticklabels(x_tick,rotation=45, ha="right") # set labels configuration
             
@@ -361,7 +370,7 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
         end_datetime=datetime.fromtimestamp(int(x[-1]))
         #checking the length of the period
         period=end_datetime-start_datetime
-        unit_period=period/20 # this is the difference of time between each stick plotted
+        unit_period=period/100 # this is the difference of time between each stick plotted
         unit_period_in_minutes=round(unit_period.seconds% 3600 / 60.0)## i get an integer representing the minutes between each plotted stuc
         #print(start_datetime,end_datetime,period,unit_period_in_minutes)
         #now you can loop through the x axis and filter only the ones with the datetime selected.
@@ -371,6 +380,24 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
        # print("x",x)
 
         return filtered_x,filtered_y
+    def new_adjust_periods_for_plotting(self,data):
+        filtered_data={}
+        x_axis=list(data["unix_time"])
+        
+        #converting the first and last element to datetime obj
+        start_datetime=datetime.fromtimestamp(int(x_axis[0]))
+        end_datetime=datetime.fromtimestamp(int(x_axis[-1]))
+        #checking the length of the period
+        period=end_datetime-start_datetime
+        unit_period=period/10 # this is the difference of time between each stick plotted
+        unit_period_in_minutes=round(unit_period.seconds% 3600 / 60.0)## i get an integer representing the minutes between each plotted stuc
+        #print(start_datetime,end_datetime,period,unit_period_in_minutes)
+        filtered_index=list(np.arange(0,len(x_axis)-1,unit_period_in_minutes))
+        filtered_data=data.filter(items=filtered_index,axis=0)
+        print(filtered_data)
+        return filtered_data
+
+
     def analise(self): # 
         #in this function, i get all the parameters and start to analise them
         
