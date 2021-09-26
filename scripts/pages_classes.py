@@ -8,7 +8,7 @@ import pandas as pd
 matplotlib.use('Qt5Agg')
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtCore import Qt,QDate,QDateTime
-from PyQt5.QtWidgets import QApplication, QComboBox, QLabel, QMainWindow, QSizePolicy, QVBoxLayout, QWidget,QHBoxLayout,QGridLayout,QStackedLayout,QPushButton,QToolBar,QSpacerItem,QLineEdit,QDateTimeEdit,QFormLayout,QDoubleSpinBox,QMessageBox
+from PyQt5.QtWidgets import QCheckBox,QApplication, QComboBox, QLabel, QMainWindow, QSizePolicy, QVBoxLayout, QWidget,QHBoxLayout,QGridLayout,QStackedLayout,QPushButton,QToolBar,QSpacerItem,QLineEdit,QDateTimeEdit,QFormLayout,QDoubleSpinBox,QMessageBox
 from PyQt5.QtGui import QPalette, QColor
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
@@ -44,6 +44,10 @@ class MplCanvas(FigureCanvas):
         #self.axes.fmt_xdata = lambda x: "{0:f}".format(x)
         self.axes.format_xdata = DateFormatter('%Y-%m-%d %H-%M')
         self.axes.fmt_ydata = lambda x: "{0:f}".format(x)
+        self.axes.spines['right'].set_visible(False)
+        self.axes.spines['top'].set_visible(False)
+        self.axes.yaxis.set_ticks_position('left')
+        self.axes.xaxis.set_ticks_position('bottom')
 
         super(MplCanvas, self).__init__(self.fig)
 
@@ -247,15 +251,26 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
         
         self.realtime_column2_layout.addStretch(1)
 
-
- # ---------------------------------------------------------------------------- #
- #                 column 3 - for both backtesting and realtime                 #
- # ---------------------------------------------------------------------------- #
+# --------------- column 3 - for both backtesting and realtime --------------- #
 
         result_column3_label=QLabel("Results:")
         self.init_date_label=QLabel()
         self.end_date_label=QLabel()
         self.balance_label=QLabel()
+        self.cbox_close = QCheckBox("Close")
+        self.cbox_open = QCheckBox("Open")
+        self.cbox_high = QCheckBox("High")
+        self.cbox_low = QCheckBox("Low")
+
+        self.cbox_close.setVisible(False)
+        self.cbox_open.setVisible(False)
+        self.cbox_high.setVisible(False)
+        self.cbox_low.setVisible(False)  
+
+
+
+
+
         #set the text alignment
         result_column3_label.setAlignment(Qt.AlignCenter)
         self.init_date_label.setAlignment(Qt.AlignRight)
@@ -268,6 +283,7 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
         self.end_date_layout.addRow(self.tr("To:"),self.end_date_label)
         self.balance_layout=QFormLayout()
         self.balance_layout.addRow(self.tr("Balance:"),self.balance_label)
+
 
         #creation of the widget used for the several layouts inside the column
         self.init_date_label_widget=QWidget()
@@ -287,6 +303,11 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
         self.column3_layout.addWidget(self.init_date_label_widget)
         self.column3_layout.addWidget(self.end_date_label_widget)
         self.column3_layout.addWidget(self.balance_label_widget)
+
+        self.column3_layout.addWidget(self.cbox_close)
+        self.column3_layout.addWidget(self.cbox_open)
+        self.column3_layout.addWidget(self.cbox_low)
+        self.column3_layout.addWidget(self.cbox_high)
         self.column3_layout.addStretch(1) #push the object up in the frame
 
         
@@ -335,15 +356,20 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
            # self.canvas.axes.plot(filtered_datetime,filtered_high,'b',label="line 1")
            #TODO:funzione che converte lista di stringhe in lista di datetime
             datetime_obj_list=[]
+
+            #creazione di una lista di datetime obj
             for element in filtered_data["string_time"]:
                 datetime_obj=datetime.strptime(element,"%Y/%m/%d %H:%M")
                 datetime_obj_list.append(datetime_obj)
-            self.canvas.axes.plot_date(datetime_obj_list,filtered_data["high"],'b',label="line 1")
+
+            self.canvas.axes.plot_date(datetime_obj_list,filtered_data["close"],'b',label="line 1")
             self.canvas.fig.set_tight_layout(True)
             x_tick=[] # here ticks will be stored 
             f = lambda m, n: [i*n//m + n//(2*m) for i in range(m)] # function that even select elements ,'m' is how many element u wnat to pick, 'n' the length of the rrray
             idx=f(self.canvas.max_x_ticks,len(datetime_obj_list))     
             x_tick=(itemgetter(*idx)(datetime_obj_list)) #here it return the sublist with the evenly spaced elements
+            self.canvas.axes.yaxis.set_ticks_position('left')
+            self.canvas.axes.xaxis.set_ticks_position('bottom') 
             self.canvas.axes.set_xticks(x_tick) # set plotted tick
             self.canvas.axes.set_xticklabels(x_tick,rotation=45, ha="right") # set labels configuration
             
@@ -389,7 +415,7 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
         end_datetime=datetime.fromtimestamp(int(x_axis[-1]))
         #checking the length of the period
         period=end_datetime-start_datetime
-        unit_period=period/10 # this is the difference of time between each stick plotted
+        unit_period=period/300 # this is the difference of time between each stick plotted
         unit_period_in_minutes=round(unit_period.seconds% 3600 / 60.0)## i get an integer representing the minutes between each plotted stuc
         #print(start_datetime,end_datetime,period,unit_period_in_minutes)
         filtered_index=list(np.arange(0,len(x_axis)-1,unit_period_in_minutes))
@@ -417,9 +443,14 @@ class Main_page(QWidget): #prototype of page widget to be used in a QStackedLayo
             self.init_date_label.setText(init_date_string.strftime('%Y-%m-%d %H:%M:%S'))
             self.end_date_label.setText(end_date_string.strftime('%Y-%m-%d %H:%M:%S'))
             self.balance_label.setText(self.getBalance())
+
             self.init_date_label_widget.setVisible(True)
             self.end_date_label_widget.setVisible(True)
             self.balance_label_widget.setVisible(True)
+            self.cbox_close.setVisible(True)
+            self.cbox_open.setVisible(True)
+            self.cbox_high.setVisible(True)
+            self.cbox_low.setVisible(True)  
             
 
 
